@@ -109,36 +109,208 @@ async function listSuburbs(location: string): Promise<string> {
 
 // Function to extract structured suburbs from unstructured listSuburbs response
 async function extractSuburbs(unstructuredSuburbs: string): Promise<string[]> {
-    const openai = new OpenAI();
-  
-    const completion = await openai.beta.chat.completions.parse({
-      model: "gpt-4o-2024-08-06",
-      messages: [
-        { role: "system", content: "Extract the list of suburbs from the given text." },
-        { role: "user", content: unstructuredSuburbs },
-      ],
-      response_format: zodResponseFormat(SuburbListSchema, "suburb_list"),
-    });
-  
-    // Check if completion, choices, message, and parsed are valid
-    if (
-      completion &&
-      completion.choices &&
-      completion.choices.length > 0 &&
-      completion.choices[0].message &&
-      completion.choices[0].message.parsed &&
-      completion.choices[0].message.parsed.suburbs
-    ) {
-      // Parse the structured suburb list
-      const suburbList = completion.choices[0].message.parsed.suburbs;
-      return suburbList;
-    } else {
-      throw new Error("Failed to extract structured suburbs.");
-    }
-  }  
+  const openai = new OpenAI();
+
+  const completion = await openai.beta.chat.completions.parse({
+    model: "gpt-4o-2024-08-06",
+    messages: [
+      { role: "system", content: "Extract the list of suburbs from the given text." },
+      { role: "user", content: unstructuredSuburbs },
+    ],
+    response_format: zodResponseFormat(SuburbListSchema, "suburb_list"),
+  });
+
+  // Check if completion, choices, message, and parsed are valid
+  if (
+    completion &&
+    completion.choices &&
+    completion.choices.length > 0 &&
+    completion.choices[0].message &&
+    completion.choices[0].message.parsed &&
+    completion.choices[0].message.parsed.suburbs
+  ) {
+    // Parse the structured suburb list
+    const suburbList = completion.choices[0].message.parsed.suburbs;
+    return suburbList;
+  } else {
+    throw new Error("Failed to extract structured suburbs.");
+  }
+}  
 
   const fs = require('fs');
   const path = require('path');
+  
+// Define the schema for the output structure
+const PersonSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+});
+
+// Define interfaces for type safety
+interface SearchResultPerson {
+  id: string;
+  title: string;
+  // Add other properties as needed
+}
+
+interface SearchResult {
+  people: SearchResultPerson[];
+  // Add other properties as needed
+}
+
+interface EnrichmentMatch {
+  id: string;
+  email?: string;
+  // Add other properties as needed
+}
+
+interface EnrichmentResult {
+  matches: EnrichmentMatch[];
+  // Add other properties as needed
+}
+
+// Function to call the mixed people search API and return the highest role person
+async function getHighestRolePerson(organizationDomain: string): Promise<{ id: string; title: string } | null> {
+  const searchUrl = 'https://api.apollo.io/v1/mixed_people/search';
+
+  const searchData = {
+    q_organization_domains: organizationDomain,
+    page: 1,
+    per_page: 10,
+  };
+
+  const headers = {
+    'Cache-Control': 'no-cache',
+    'Content-Type': 'application/json',
+    'X-Api-Key': 'SFyfgx8nObaztQk9LRGhuA', // Replace with your actual API key
+  };
+
+  try {
+    // Step 1: Search for people in the organization
+    const searchResponse = await fetch(searchUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(searchData),
+    });
+
+    if (!searchResponse.ok) {
+      throw new Error(`HTTP error! status: ${searchResponse.status}`);
+    }
+
+    const searchResult: SearchResult = await searchResponse.json();
+
+    if (!searchResult.people || searchResult.people.length === 0) {
+      console.log(`No people found for ${organizationDomain}`);
+      return null;
+    }
+
+    // Clean up the result by extracting only 'id' and 'title'
+    const cleanedResults = searchResult.people.map((person: SearchResultPerson) => ({
+      id: person.id,
+      title: person.title,
+    }));
+
+    // Log the cleaned results
+    console.log(`Cleaned Search Results for ${organizationDomain}:`, cleanedResults);
+
+    // Step 2: Use GPT to find the person with the highest role
+    const completion = await openai.beta.chat.completions.parse({
+      model: 'gpt-4o-2024-08-06',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a helpful assistant that identifies the person with the highest role in a company based on their title.',
+        },
+        {
+          role: 'user',
+          content: `Given the following people and their titles: ${JSON.stringify(
+            cleanedResults
+          )}. Find the person with the highest role.`,
+        },
+      ],
+      response_format: zodResponseFormat(PersonSchema, 'highest_role_person'),
+    });
+
+    const highestRolePerson: { id: string; title: string } | null =
+      completion.choices[0].message.parsed;
+
+    // Add null check for highestRolePerson
+    if (highestRolePerson) {
+      // Log the person with the highest role in the company
+      console.log(`Person with highest role in ${organizationDomain}:`, highestRolePerson);
+      return highestRolePerson;
+    } else {
+      console.log('Highest role person could not be determined.');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error with Apollo API request or GPT processing:', error);
+    return null;
+  }
+}
+
+// Function to enrich up to 10 highest role persons at once
+async function enrichHighestRolePersons(highestRolePersons: { id: string; title: string }[]) {
+  if (highestRolePersons.length === 0) {
+    console.log('No highest role persons to enrich.');
+    return;
+  }
+
+  const enrichmentData = {
+    reveal_personal_emails: true,
+    reveal_phone_number: false,
+    details: highestRolePersons.map((person) => ({ id: person.id })),
+  };
+
+  const enrichmentUrl = 'https://api.apollo.io/api/v1/people/bulk_match';
+
+  const headers = {
+    'Cache-Control': 'no-cache',
+    'Content-Type': 'application/json',
+    'X-Api-Key': 'jocT8BalrlzTi18yZOGBcA', // Replace with your actual API key
+  };
+
+  try {
+    const enrichmentResponse = await fetch(enrichmentUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(enrichmentData),
+    });
+
+    if (!enrichmentResponse.ok) {
+      throw new Error(`HTTP error! status: ${enrichmentResponse.status}`);
+    }
+
+    const enrichmentResult: EnrichmentResult = await enrichmentResponse.json();
+
+    // Log the enrichment results
+    console.log(`Bulk Enrichment Results:`, enrichmentResult);
+
+    // Map enriched matches by ID for easy lookup
+    const enrichedMatchesMap: { [id: string]: EnrichmentMatch } = {};
+    enrichmentResult.matches.forEach((match) => {
+      enrichedMatchesMap[match.id] = match;
+    });
+
+    // Log the email of each highest role person
+    highestRolePersons.forEach((person) => {
+      const enrichedMatch = enrichedMatchesMap[person.id];
+      if (enrichedMatch) {
+        console.log(
+          `Email of the highest role person (${person.title}) in company:`,
+          enrichedMatch.email
+        );
+      } else {
+        console.log(`Enriched data for person ID ${person.id} not found.`);
+      }
+    });
+  } catch (error) {
+    console.error('Error during bulk enrichment:', error);
+  }
+}
+
+
   
   // Function to scrape Google Maps for businesses based on business type and location
   async function scrapeGoogleMaps(businessType: string, locationQuery: string): Promise<any[]> {
@@ -246,46 +418,76 @@ async function runActorPool(businessType: string, suburbs: string[], maxConcurre
   }).then(() => Promise.all(allPromises).then(() => allResults));
 }
 
+// Add this function to read the JSON data from the file
+function readJsonFromFile(filename: string): any[] {
+  const filepath = path.join(__dirname, filename);
+  const data = fs.readFileSync(filepath, 'utf-8');
+  return JSON.parse(data);
+}
   
-  // Main function to generate leads and handle location check + suburbs listing
-  export async function generateLeads(businessType: string, location: string): Promise<string> {
-    try {
-      const locationCheckResult = await checkLocation(location);
-      console.log("Location check result:", locationCheckResult);
-  
-      if (locationCheckResult === "yes") {
-        console.log("Broad location detected, fetching list of suburbs...");
-        const unstructuredSuburbs = await listSuburbs(location);
-        console.log("Suburbs list retrieved:", unstructuredSuburbs);
-        const structuredSuburbs = await extractSuburbs(unstructuredSuburbs);
-        console.log("Structured Suburb List:", structuredSuburbs);
-  
-        // Run a pool of 7 actors at a time and collect results
-        const allResults = await runActorPool(businessType, structuredSuburbs, 7);
-  
-        // Remove duplicates from the combined results
-        const uniqueResults = removeDuplicates(allResults);
-  
-        // Save final results to JSON file
-        saveToFile('finalResults.json', uniqueResults);
-  
-        return `Lead generation completed. Final results saved with ${uniqueResults.length} unique businesses.`;
-      } else {
-        console.log("Specific location detected, scraping Google Maps...");
-        const results = await scrapeGoogleMaps(businessType, location);
-  
-        // Remove duplicates in case of single-location scraping
-        const uniqueResults = removeDuplicates(results);
-  
-        // Save final results to JSON file
-        saveToFile('finalResults.json', uniqueResults);
-  
-        return `Lead generation successful for location: ${location}, with ${uniqueResults.length} unique businesses.`;
-      }
-    } catch (error) {
-      console.error("Error in the lead generation process:", error);
-      return "Lead generation failed";
+// Main function to generate leads and handle location check + suburbs listing
+export async function generateLeads(businessType: string, location: string): Promise<string> {
+  try {
+    const locationCheckResult = await checkLocation(location);
+    console.log('Location check result:', locationCheckResult);
+
+    let uniqueResults;
+
+    if (locationCheckResult === 'yes') {
+      console.log('Broad location detected, fetching list of suburbs...');
+      const unstructuredSuburbs = await listSuburbs(location);
+      console.log('Suburbs list retrieved:', unstructuredSuburbs);
+      const structuredSuburbs = await extractSuburbs(unstructuredSuburbs);
+      console.log('Structured Suburb List:', structuredSuburbs);
+
+      // Run a pool of 7 actors at a time and collect results
+      const allResults = await runActorPool(businessType, structuredSuburbs, 7);
+
+      // Remove duplicates from the combined results
+      uniqueResults = removeDuplicates(allResults);
+    } else {
+      console.log('Specific location detected, scraping Google Maps...');
+      const results = await scrapeGoogleMaps(businessType, location);
+
+      // Remove duplicates in case of single-location scraping
+      uniqueResults = removeDuplicates(results);
     }
+
+    // Save final results to JSON file
+    saveToFile('finalResults.json', uniqueResults);
+
+    // Read saved JSON file and process each company domain
+    const savedData = readJsonFromFile('finalResults.json');
+
+    const highestRolePersons: { id: string; title: string }[] = [];
+
+    // Process each company in the saved JSON data
+    for (const company of savedData) {
+      if (company.website) {
+        const websiteDomain = new URL(company.website).hostname; // Extract the domain from the URL
+        const highestRolePerson = await getHighestRolePerson(websiteDomain);
+        if (highestRolePerson) {
+          highestRolePersons.push(highestRolePerson);
+        }
+
+        // When we have collected 10 highest role persons, enrich them
+        if (highestRolePersons.length === 10) {
+          await enrichHighestRolePersons(highestRolePersons);
+          highestRolePersons.length = 0; // Reset the array
+        }
+      }
+    }
+
+    // Enrich any remaining highest role persons
+    if (highestRolePersons.length > 0) {
+      await enrichHighestRolePersons(highestRolePersons);
+    }
+
+    return `Lead generation completed. Final results saved with ${uniqueResults.length} unique businesses.`;
+  } catch (error) {
+    console.error('Error in the lead generation process:', error);
+    return 'Lead generation failed';
   }
+}
   
   
