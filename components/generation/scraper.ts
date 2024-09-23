@@ -30,7 +30,7 @@ async function checkLocation(userInput: string): Promise<string> {
         {
           role: "system",
           content:
-            "Determine if the user input is too broad of a location, suburbs or small cities are not broad location. Be mindful of user typo and synonyms. Example of broad location: sydney, brisbane, melbourne, adelaide, perth, gold coast, canberra, newcastle, wollongong, geelong, townville, cairns, toowoomba, ballarat, bendigo, albury wodonga etc",
+            "Determine if the user input is too broad of a location, suburbs or small cities are not broad location. Be mindful of user typo and synonyms. Example of broad location: Eastern Suburb Sydney, North Sydney, sydney, brisbane, melbourne, adelaide, perth, gold coast, canberra, newcastle, wollongong, geelong, townville, cairns, toowoomba, ballarat, bendigo, albury wodonga etc",
         },
         { role: "user", content: userInput.toLowerCase() },
       ],
@@ -137,29 +137,155 @@ async function extractSuburbs(unstructuredSuburbs: string): Promise<string[]> {
     }
   }  
 
-// Main function to generate leads and handle location check + suburbs listing
-export async function generateLeads(businessType: string, location: string): Promise<string> {
-  try {
-    const locationCheckResult = await checkLocation(location);
-    console.log("Location check result:", locationCheckResult);
+  const fs = require('fs');
+  const path = require('path');
+  
+  // Function to scrape Google Maps for businesses based on business type and location
+  async function scrapeGoogleMaps(businessType: string, locationQuery: string): Promise<any[]> {
+    const input = {
+      searchStringsArray: [businessType],
+      locationQuery: locationQuery,
+      maxCrawledPlacesPerSearch: 5,
+      language: "en",
+      maxImages: 0,
+      scrapeImageAuthors: false,
+      onlyDataFromSearchPage: false,
+      includeWebResults: false,
+      scrapeDirectories: true,
+      deeperCityScrape: true,
+      searchMatching: "all",
+      placeMinimumStars: "",
+      skipClosedPlaces: false,
+      allPlacesNoSearchAction: ""
+    };
+  
+    const { ApifyClient } = require('apify-client');
+    const client = new ApifyClient({ token: 'apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ' });
+  
+    try {
+      // Run the Actor for the specified location and business type
+      const run = await client.actor("nwua9Gu5YrADL7ZDj").call(input);
+  
+      // Fetch Actor results from the run's dataset
+      const { items } = await client.dataset(run.defaultDatasetId).listItems();
+  
+      // Map each item to a JSON format
+      const results = items.map((item: any) => ({
+        title: item.title,
+        address: item.address,
+        website: item.website || '',
+        phone: item.phoneUnformatted || '',
+      }));
+  
+      // Log what has been scraped for this suburb
+      console.log(`Scraped data for location: ${locationQuery}`);
+      console.log(JSON.stringify(results, null, 2)); // Pretty print the JSON result
+  
+      return results;
+    } catch (error) {
+      console.error("Error in scrapeGoogleMaps:", error);
+      throw error;
+    }
+  }
+  
+  // Function to remove duplicates based on a unique key (e.g., phone or title)
+  function removeDuplicates(results: any[]): any[] {
+    const seen = new Set();
+    return results.filter((item) => {
+      const identifier = item.phone || item.title; // Use phone or title as the unique identifier
+      if (seen.has(identifier)) {
+        return false; // If already seen, remove the duplicate
+      }
+      seen.add(identifier);
+      return true; // Keep unique entries
+    });
+  }
+  
+  // Function to write the final JSON to a file
+  function saveToFile(filename: string, data: any) {
+    const filepath = path.join(__dirname, filename);
+    fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+    console.log(`Saved JSON data to ${filepath}`);
+  }
+  
+// Helper function to handle actor concurrency and collect results
+async function runActorPool(businessType: string, suburbs: string[], maxConcurrency: number): Promise<any[]> {
+  const allResults: any[] = [];
+  const allPromises: Promise<void>[] = [];
+  let activeCount = 0;
+  let nextIndex = 0;
 
-    if (locationCheckResult === "yes") {
-      console.log("Broad location detected, fetching list of suburbs...");
-      const unstructuredSuburbs = await listSuburbs(location);
-      console.log("Suburbs list retrieved:", unstructuredSuburbs);
-      const structuredSuburbs = await extractSuburbs(unstructuredSuburbs);
-      console.log("Structured Suburb List:", structuredSuburbs);
-      return `Broad location detected. Suburbs in ${location}: ${unstructuredSuburbs}`;
+  return new Promise<void>((resolve, reject) => {
+    function runNextActor() {
+      // Start new actors while we haven't reached maxConcurrency and there are suburbs left
+      while (activeCount < maxConcurrency && nextIndex < suburbs.length) {
+        const suburb = suburbs[nextIndex++];
+        activeCount++;
+        console.log(`Starting actor for suburb: ${suburb}`);
+        const actorPromise = scrapeGoogleMaps(businessType, suburb)
+          .then((results) => {
+            console.log(`Actor completed for suburb: ${suburb}`);
+            allResults.push(...results); // Collect the results
+          })
+          .catch((error) => {
+            console.error(`Error running actor for suburb: ${suburb}`, error);
+          })
+          .finally(() => {
+            activeCount--;
+            if (activeCount === 0 && nextIndex >= suburbs.length) {
+              resolve(); // All actors have finished
+            } else {
+              runNextActor(); // Start the next actor
+            }
+          });
+        allPromises.push(actorPromise);
+      }
     }
 
-    // If the location is not broad, proceed with lead generation
-    // Add any additional lead generation logic here.
-    console.log("Specific location detected, proceeding with lead generation...");
-    await new Promise((resolve) => setTimeout(resolve, 2000));  // Simulate async processing
-
-    return "Lead generation successful"; // Return success message
-  } catch (error) {
-    console.error("Error in the lead generation process:", error);
-    return "Lead generation failed";
-  }
+    runNextActor();
+  }).then(() => Promise.all(allPromises).then(() => allResults));
 }
+
+  
+  // Main function to generate leads and handle location check + suburbs listing
+  export async function generateLeads(businessType: string, location: string): Promise<string> {
+    try {
+      const locationCheckResult = await checkLocation(location);
+      console.log("Location check result:", locationCheckResult);
+  
+      if (locationCheckResult === "yes") {
+        console.log("Broad location detected, fetching list of suburbs...");
+        const unstructuredSuburbs = await listSuburbs(location);
+        console.log("Suburbs list retrieved:", unstructuredSuburbs);
+        const structuredSuburbs = await extractSuburbs(unstructuredSuburbs);
+        console.log("Structured Suburb List:", structuredSuburbs);
+  
+        // Run a pool of 7 actors at a time and collect results
+        const allResults = await runActorPool(businessType, structuredSuburbs, 7);
+  
+        // Remove duplicates from the combined results
+        const uniqueResults = removeDuplicates(allResults);
+  
+        // Save final results to JSON file
+        saveToFile('finalResults.json', uniqueResults);
+  
+        return `Lead generation completed. Final results saved with ${uniqueResults.length} unique businesses.`;
+      } else {
+        console.log("Specific location detected, scraping Google Maps...");
+        const results = await scrapeGoogleMaps(businessType, location);
+  
+        // Remove duplicates in case of single-location scraping
+        const uniqueResults = removeDuplicates(results);
+  
+        // Save final results to JSON file
+        saveToFile('finalResults.json', uniqueResults);
+  
+        return `Lead generation successful for location: ${location}, with ${uniqueResults.length} unique businesses.`;
+      }
+    } catch (error) {
+      console.error("Error in the lead generation process:", error);
+      return "Lead generation failed";
+    }
+  }
+  
+  
