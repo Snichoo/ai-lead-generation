@@ -16,7 +16,7 @@ const LocationCheck = z.object({
 });
 
 const SuburbListSchema = z.object({
-    suburbs: z.array(z.string()), // Ensuring the response is an array of suburb strings
+  suburbs: z.array(z.string()), // Ensuring the response is an array of suburb strings
 });
 
 // Function to check if the location is broad or specific
@@ -137,13 +137,23 @@ async function extractSuburbs(unstructuredSuburbs: string): Promise<string[]> {
   }
 }  
 
-  const fs = require('fs');
-  const path = require('path');
-  
+const fs = require('fs');
+const path = require('path');
+
 // Define the schema for the output structure
 const PersonSchema = z.object({
   id: z.string(),
   title: z.string(),
+});
+
+// Extend the schema to include additional details
+const EnrichedPersonSchema = z.object({
+  id: z.string(),
+  first_name: z.string(),
+  last_name: z.string(),
+  email: z.string().email(),
+  title: z.string(),
+  linkedin_url: z.string().url().optional(),
 });
 
 // Define interfaces for type safety
@@ -161,6 +171,10 @@ interface SearchResult {
 interface EnrichmentMatch {
   id: string;
   email?: string;
+  first_name?: string;
+  last_name?: string;
+  title?: string;
+  linkedin_url?: string;
   // Add other properties as needed
 }
 
@@ -251,7 +265,7 @@ async function getHighestRolePerson(organizationDomain: string): Promise<{ id: s
 }
 
 // Function to enrich up to 10 highest role persons at once
-async function enrichHighestRolePersons(highestRolePersons: { id: string; title: string }[]) {
+async function enrichHighestRolePersons(highestRolePersons: { id: string; title: string; companyIndex: number }[], savedData: any[]) {
   if (highestRolePersons.length === 0) {
     console.log('No highest role persons to enrich.');
     return;
@@ -293,13 +307,25 @@ async function enrichHighestRolePersons(highestRolePersons: { id: string; title:
       enrichedMatchesMap[match.id] = match;
     });
 
-    // Log the email of each highest role person
+    // Update the corresponding companies in savedData
     highestRolePersons.forEach((person) => {
       const enrichedMatch = enrichedMatchesMap[person.id];
       if (enrichedMatch) {
+        const company = savedData[person.companyIndex];
+        company.first_name = enrichedMatch.first_name || '';
+        company.last_name = enrichedMatch.last_name || '';
+        company.email = enrichedMatch.email || '';
+        company.title = enrichedMatch.title || person.title;
+        company.linkedin_url = enrichedMatch.linkedin_url || '';
         console.log(
-          `Email of the highest role person (${person.title}) in company:`,
-          enrichedMatch.email
+          `Updated company at index ${person.companyIndex} with contact details:`,
+          {
+            first_name: company.first_name,
+            last_name: company.last_name,
+            email: company.email,
+            title: company.title,
+            linkedin_url: company.linkedin_url,
+          }
         );
       } else {
         console.log(`Enriched data for person ID ${person.id} not found.`);
@@ -310,76 +336,75 @@ async function enrichHighestRolePersons(highestRolePersons: { id: string; title:
   }
 }
 
+const { ApifyClient } = require('apify-client');
 
-  
-  // Function to scrape Google Maps for businesses based on business type and location
-  async function scrapeGoogleMaps(businessType: string, locationQuery: string): Promise<any[]> {
-    const input = {
-      searchStringsArray: [businessType],
-      locationQuery: locationQuery,
-      maxCrawledPlacesPerSearch: 5,
-      language: "en",
-      maxImages: 0,
-      scrapeImageAuthors: false,
-      onlyDataFromSearchPage: false,
-      includeWebResults: false,
-      scrapeDirectories: true,
-      deeperCityScrape: true,
-      searchMatching: "all",
-      placeMinimumStars: "",
-      skipClosedPlaces: false,
-      allPlacesNoSearchAction: ""
-    };
-  
-    const { ApifyClient } = require('apify-client');
-    const client = new ApifyClient({ token: 'apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ' });
-  
-    try {
-      // Run the Actor for the specified location and business type
-      const run = await client.actor("nwua9Gu5YrADL7ZDj").call(input);
-  
-      // Fetch Actor results from the run's dataset
-      const { items } = await client.dataset(run.defaultDatasetId).listItems();
-  
-      // Map each item to a JSON format
-      const results = items.map((item: any) => ({
-        title: item.title,
-        address: item.address,
-        website: item.website || '',
-        phone: item.phoneUnformatted || '',
-      }));
-  
-      // Log what has been scraped for this suburb
-      console.log(`Scraped data for location: ${locationQuery}`);
-      console.log(JSON.stringify(results, null, 2)); // Pretty print the JSON result
-  
-      return results;
-    } catch (error) {
-      console.error("Error in scrapeGoogleMaps:", error);
-      throw error;
+// Function to scrape Google Maps for businesses based on business type and location
+async function scrapeGoogleMaps(businessType: string, locationQuery: string): Promise<any[]> {
+  const input = {
+    searchStringsArray: [businessType],
+    locationQuery: locationQuery,
+    maxCrawledPlacesPerSearch: 5,
+    language: "en",
+    maxImages: 0,
+    scrapeImageAuthors: false,
+    onlyDataFromSearchPage: false,
+    includeWebResults: false,
+    scrapeDirectories: true,
+    deeperCityScrape: true,
+    searchMatching: "all",
+    placeMinimumStars: "",
+    skipClosedPlaces: false,
+    allPlacesNoSearchAction: ""
+  };
+
+  const client = new ApifyClient({ token: 'apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ' });
+
+  try {
+    // Run the Actor for the specified location and business type
+    const run = await client.actor("nwua9Gu5YrADL7ZDj").call(input);
+
+    // Fetch Actor results from the run's dataset
+    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+    // Map each item to a JSON format
+    const results = items.map((item: any) => ({
+      company_name: item.title,
+      address: item.address,
+      website: item.website || '',
+      company_phone: item.phoneUnformatted || '',
+    }));
+
+    // Log what has been scraped for this suburb
+    console.log(`Scraped data for location: ${locationQuery}`);
+    console.log(JSON.stringify(results, null, 2)); // Pretty print the JSON result
+
+    return results;
+  } catch (error) {
+    console.error("Error in scrapeGoogleMaps:", error);
+    throw error;
+  }
+}
+
+// Function to remove duplicates based on a unique key (e.g., phone or title)
+function removeDuplicates(results: any[]): any[] {
+  const seen = new Set();
+  return results.filter((item) => {
+    const identifier = item.phone || item.title; // Use phone or title as the unique identifier
+    if (seen.has(identifier)) {
+      return false; // If already seen, remove the duplicate
     }
-  }
-  
-  // Function to remove duplicates based on a unique key (e.g., phone or title)
-  function removeDuplicates(results: any[]): any[] {
-    const seen = new Set();
-    return results.filter((item) => {
-      const identifier = item.phone || item.title; // Use phone or title as the unique identifier
-      if (seen.has(identifier)) {
-        return false; // If already seen, remove the duplicate
-      }
-      seen.add(identifier);
-      return true; // Keep unique entries
-    });
-  }
-  
-  // Function to write the final JSON to a file
-  function saveToFile(filename: string, data: any) {
-    const filepath = path.join(__dirname, filename);
-    fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
-    console.log(`Saved JSON data to ${filepath}`);
-  }
-  
+    seen.add(identifier);
+    return true; // Keep unique entries
+  });
+}
+
+// Function to write the final JSON to a file
+function saveToFile(filename: string, data: any) {
+  const filepath = path.join(__dirname, filename);
+  fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+  console.log(`Saved JSON data to ${filepath}`);
+}
+
 // Helper function to handle actor concurrency and collect results
 async function runActorPool(businessType: string, suburbs: string[], maxConcurrency: number): Promise<any[]> {
   const allResults: any[] = [];
@@ -424,7 +449,7 @@ function readJsonFromFile(filename: string): any[] {
   const data = fs.readFileSync(filepath, 'utf-8');
   return JSON.parse(data);
 }
-  
+
 // Main function to generate leads and handle location check + suburbs listing
 export async function generateLeads(businessType: string, location: string): Promise<string> {
   try {
@@ -457,22 +482,23 @@ export async function generateLeads(businessType: string, location: string): Pro
     saveToFile('finalResults.json', uniqueResults);
 
     // Read saved JSON file and process each company domain
-    const savedData = readJsonFromFile('finalResults.json');
+    const savedData: any[] = readJsonFromFile('finalResults.json');
 
-    const highestRolePersons: { id: string; title: string }[] = [];
+    const highestRolePersons: { id: string; title: string; companyIndex: number }[] = [];
 
-    // Process each company in the saved JSON data
-    for (const company of savedData) {
+    // Modified loop to fix the error
+    for (let index = 0; index < savedData.length; index++) {
+      const company = savedData[index];
       if (company.website) {
         const websiteDomain = new URL(company.website).hostname; // Extract the domain from the URL
         const highestRolePerson = await getHighestRolePerson(websiteDomain);
         if (highestRolePerson) {
-          highestRolePersons.push(highestRolePerson);
+          highestRolePersons.push({ ...highestRolePerson, companyIndex: index });
         }
 
         // When we have collected 10 highest role persons, enrich them
         if (highestRolePersons.length === 10) {
-          await enrichHighestRolePersons(highestRolePersons);
+          await enrichHighestRolePersons(highestRolePersons, savedData);
           highestRolePersons.length = 0; // Reset the array
         }
       }
@@ -480,8 +506,11 @@ export async function generateLeads(businessType: string, location: string): Pro
 
     // Enrich any remaining highest role persons
     if (highestRolePersons.length > 0) {
-      await enrichHighestRolePersons(highestRolePersons);
+      await enrichHighestRolePersons(highestRolePersons, savedData);
     }
+
+    // Save the updated savedData back to finalResults.json
+    saveToFile('finalResults.json', savedData);
 
     return `Lead generation completed. Final results saved with ${uniqueResults.length} unique businesses.`;
   } catch (error) {
@@ -489,5 +518,3 @@ export async function generateLeads(businessType: string, location: string): Pro
     return 'Lead generation failed';
   }
 }
-  
-  
