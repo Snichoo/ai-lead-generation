@@ -398,14 +398,14 @@ function removeDuplicates(results: any[]): any[] {
 
 // Function to write the final JSON to a file
 function saveToFile(filename: string, data: any) {
-  const filepath = path.join(__dirname, filename);
+  const filepath = path.join(process.cwd(), 'public', 'csv', filename);
+  fs.mkdirSync(path.dirname(filepath), { recursive: true });
   fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
   console.log(`Saved JSON data to ${filepath}`);
 }
 
-// Add this function to read the JSON data from the file
 function readJsonFromFile(filename: string): any[] {
-  const filepath = path.join(__dirname, filename);
+  const filepath = path.join(process.cwd(), 'public', 'csv', filename);
   const data = fs.readFileSync(filepath, "utf-8");
   return JSON.parse(data);
 }
@@ -504,10 +504,10 @@ async function generateCSVFile(businessType: string, location: string, data: any
   const timestamp = now.toISOString().replace(/[:.]/g, '-');
   const filename = `${sanitizedBusinessType}_${sanitizedLocation}_${timestamp}.csv`;
 
-  // Define the CSV file path
-  const filepath = path.join(__dirname, 'csv', filename);
+  // Define the CSV file path in public/csv/
+  const filepath = path.join(process.cwd(), 'public', 'csv', filename);
 
-  // Ensure the 'csv' directory exists
+  // Ensure the 'public/csv' directory exists
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
 
   // Define the CSV columns

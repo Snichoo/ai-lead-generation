@@ -3,7 +3,8 @@ import fs from 'fs';
 import path from 'path';
 
 export async function GET(request: Request) {
-  const fileInfoPath = path.join(process.cwd(), 'lead-generation', 'components', 'generation', 'csvFileInfo.json');
+  // Update the path to match where csvFileInfo.json is saved
+  const fileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
 
   try {
     const data = fs.readFileSync(fileInfoPath, 'utf-8');

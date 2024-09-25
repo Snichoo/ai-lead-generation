@@ -14,9 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-type CardProps = React.ComponentProps<typeof Card>
-
-export default function CardDemo({ className, ...props }: CardProps) {
+export default function CardDemo() {
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 })
   const [showConfetti, setShowConfetti] = useState(true)
   const [fileInfo, setFileInfo] = useState<any>(null)
@@ -63,7 +61,7 @@ export default function CardDemo({ className, ...props }: CardProps) {
       )}
       <h1 className="text-4xl font-bold mb-7">Lead Generation Completed🥳</h1>
       <div className="flex flex-col items-center space-y-4 w-full max-w-[600px]">
-        <Card className={cn("w-full", className)} {...props}>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Download CSV File</CardTitle>
           </CardHeader>
