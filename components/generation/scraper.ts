@@ -152,12 +152,20 @@ const EnrichedPersonSchema = z.object({
   linkedin_url: z.string().url().optional(),
 });
 
-// Define interfaces for type safety
+interface Organization {
+  name?: string;
+  domain?: string;
+  website_url?: string;
+  // Add other properties if needed
+}
+
 interface SearchResultPerson {
   id: string;
   title: string;
+  organization: Organization;
   // Add other properties as needed
 }
+
 
 interface SearchResult {
   people: SearchResultPerson[];
@@ -179,14 +187,14 @@ interface EnrichmentResult {
   // Add other properties as needed
 }
 
-// Function to call the mixed people search API and return the highest role person
+// Function to call the mixed people search API and return the highest role persons for multiple domains
 async function getHighestRolePerson(
-  organizationDomain: string
-): Promise<{ id: string; title: string } | null> {
+  organizationDomains: string[]
+): Promise<{ id: string; title: string; domain: string }[]> {
   const searchUrl = "https://api.apollo.io/v1/mixed_people/search";
 
   const searchData = {
-    q_organization_domains: organizationDomain,
+    q_organization_domains: organizationDomains.join("\n"), // Join domains by new line character
     page: 1,
     per_page: 10,
   };
@@ -198,7 +206,7 @@ async function getHighestRolePerson(
   };
 
   try {
-    // Step 1: Search for people in the organization
+    // Step 1: Search for people in the organization domains
     const searchResponse = await fetch(searchUrl, {
       method: "POST",
       headers: headers,
@@ -212,55 +220,75 @@ async function getHighestRolePerson(
     const searchResult: SearchResult = await searchResponse.json();
 
     if (!searchResult.people || searchResult.people.length === 0) {
-      console.log(`No people found for ${organizationDomain}`);
-      return null;
+      console.log(`No people found for domains: ${organizationDomains.join(", ")}`);
+      return [];
     }
 
-    // Clean up the result by extracting only 'id' and 'title'
-    const cleanedResults = searchResult.people.map((person: SearchResultPerson) => ({
-      id: person.id,
-      title: person.title,
-    }));
+    // Group people by their organization domain
+    const peopleByDomain: { [domain: string]: SearchResultPerson[] } = {};
 
-    // Log the cleaned results
-    console.log(`Cleaned Search Results for ${organizationDomain}:`, cleanedResults);
-
-    // Step 2: Use GPT to find the person with the highest role
-    const completion = await openai.beta.chat.completions.parse({
-      model: "gpt-4o-2024-08-06",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a helpful assistant that identifies the person with the highest role in a company based on their title.",
-        },
-        {
-          role: "user",
-          content: `Given the following people and their titles: ${JSON.stringify(
-            cleanedResults
-          )}. Find the person with the highest role.`,
-        },
-      ],
-      response_format: zodResponseFormat(PersonSchema, "highest_role_person"),
+    searchResult.people.forEach((person) => {
+      const personDomain =
+        person.organization?.domain || new URL(person.organization?.website_url || '').hostname;
+      if (personDomain) {
+        const normalizedDomain = personDomain.replace(/^www\./, "");
+        if (!peopleByDomain[normalizedDomain]) {
+          peopleByDomain[normalizedDomain] = [];
+        }
+        peopleByDomain[normalizedDomain].push(person);
+      } else {
+        console.log("Person without organization domain:", person);
+      }
     });
 
-    const highestRolePerson: { id: string; title: string } | null =
-      completion.choices[0].message.parsed;
+    const highestRolePersons: { id: string; title: string; domain: string }[] = [];
 
-    // Add null check for highestRolePerson
-    if (highestRolePerson) {
-      // Log the person with the highest role in the company
-      console.log(`Person with highest role in ${organizationDomain}:`, highestRolePerson);
-      return highestRolePerson;
-    } else {
-      console.log("Highest role person could not be determined.");
-      return null;
+    // For each domain, find the person with the highest role
+    for (const domain of Object.keys(peopleByDomain)) {
+      const people = peopleByDomain[domain];
+
+      // Clean up the result by extracting only 'id' and 'title'
+      const cleanedResults = people.map((person: SearchResultPerson) => ({
+        id: person.id,
+        title: person.title,
+      }));
+
+      // Use GPT to find the person with the highest role
+      const completion = await openai.beta.chat.completions.parse({
+        model: "gpt-4o-2024-08-06",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a helpful assistant that identifies the person with the highest role in a company based on their title.",
+          },
+          {
+            role: "user",
+            content: `Given the following people and their titles: ${JSON.stringify(
+              cleanedResults
+            )}. Find the person with the highest role.`,
+          },
+        ],
+        response_format: zodResponseFormat(PersonSchema, "highest_role_person"),
+      });
+
+      const highestRolePerson: { id: string; title: string } | null =
+        completion.choices[0].message.parsed;
+
+      if (highestRolePerson) {
+        highestRolePersons.push({ ...highestRolePerson, domain });
+      } else {
+        console.log(`Highest role person could not be determined for domain ${domain}.`);
+      }
     }
+
+    return highestRolePersons;
   } catch (error) {
     console.error("Error with Apollo API request or GPT processing:", error);
-    return null;
+    return [];
   }
 }
+
 
 // Function to enrich up to 10 highest role persons at once
 async function enrichHighestRolePersons(
@@ -575,6 +603,7 @@ async function generateCSVFile(businessType: string, location: string, data: any
 }
 
 // Main function to generate leads and handle location check + suburbs listing
+// Main function to generate leads and handle location check + suburbs listing
 export async function generateLeads(businessType: string, location: string): Promise<string> {
   try {
     const locationCheckResult = await checkLocation(location);
@@ -608,24 +637,49 @@ export async function generateLeads(businessType: string, location: string): Pro
     // Read saved JSON file and process each company domain
     const savedData: any[] = readJsonFromFile("finalResults.json");
 
-    const highestRolePersons: { id: string; title: string; companyIndex: number }[] = [];
+    const highestRolePersons: { id: string; title: string; domain: string; companyIndex: number }[] =
+      [];
 
-    // Modified loop to fix the error
+    let domainsBatch: string[] = [];
+    let domainToCompanyIndex: { [domain: string]: number } = {};
+
     for (let index = 0; index < savedData.length; index++) {
       const company = savedData[index];
       if (company.website) {
-        const websiteDomain = new URL(company.website).hostname; // Extract the domain from the URL
-        const highestRolePerson = await getHighestRolePerson(websiteDomain);
-        if (highestRolePerson) {
-          highestRolePersons.push({ ...highestRolePerson, companyIndex: index });
-        }
+        const websiteDomain = new URL(company.website).hostname.replace(/^www\./, "");
+        domainsBatch.push(websiteDomain);
+        domainToCompanyIndex[websiteDomain] = index;
 
-        // When we have collected 10 highest role persons, enrich them
-        if (highestRolePersons.length === 10) {
-          await enrichHighestRolePersons(highestRolePersons, savedData);
-          highestRolePersons.length = 0; // Reset the array
+        // When we have collected enough domains, process them
+        if (domainsBatch.length === 10) {
+          const highestRolePersonsBatch = await getHighestRolePerson(domainsBatch);
+
+          highestRolePersonsBatch.forEach((person) => {
+            const companyIndex = domainToCompanyIndex[person.domain];
+            highestRolePersons.push({ ...person, companyIndex });
+          });
+
+          // Clear the domainsBatch and domainToCompanyIndex
+          domainsBatch = [];
+          domainToCompanyIndex = {};
+
+          // When we have collected 10 highest role persons, enrich them
+          if (highestRolePersons.length >= 10) {
+            await enrichHighestRolePersons(highestRolePersons, savedData);
+            highestRolePersons.length = 0; // Reset the array
+          }
         }
       }
+    }
+
+    // Process any remaining domains
+    if (domainsBatch.length > 0) {
+      const highestRolePersonsBatch = await getHighestRolePerson(domainsBatch);
+
+      highestRolePersonsBatch.forEach((person) => {
+        const companyIndex = domainToCompanyIndex[person.domain];
+        highestRolePersons.push({ ...person, companyIndex });
+      });
     }
 
     // Enrich any remaining highest role persons

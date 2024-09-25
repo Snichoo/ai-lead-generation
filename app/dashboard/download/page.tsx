@@ -60,7 +60,7 @@ export default function CardDemo() {
         />
       )}
       <h1 className="text-4xl font-bold mb-7">Lead Generation Completed🥳</h1>
-      <div className="flex flex-col items-center space-y-4 w-full max-w-[600px]">
+      <div className="flex flex-col items-center space-y-4 w-full max-w-[900px]">
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Download CSV File</CardTitle>
@@ -77,16 +77,18 @@ export default function CardDemo() {
                 </p>
               </div>
             </div>
-            <Button className="w-full" onClick={handleDownload} disabled={!fileInfo}>
-              <Download className="mr-2 h-4 w-4" /> Download
-            </Button>
+            <div className="flex justify-between items-center">
+              <Link href="/dashboard" passHref>
+                <Button variant="outline" className="w-auto">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Return to Dashboard
+                </Button>
+              </Link>
+              <Button className="w-auto px-4 py-2" onClick={handleDownload} disabled={!fileInfo}>
+                <Download className="mr-2 h-4 w-4" /> Download
+              </Button>
+            </div>
           </CardContent>
         </Card>
-        <Link href="/dashboard" passHref>
-          <Button variant="outline" className="w-full">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Return to Dashboard
-          </Button>
-        </Link>
       </div>
     </div>
   )

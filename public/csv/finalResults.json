@@ -4,99 +4,35 @@
     "company_phone": ""
   },
   {
-    "company_name": "Michael Law Group",
-    "address": "level 1/377 New South Head Rd, Double Bay NSW 2028, Australia",
-    "website": "http://www.michaellawgroup.com.au/",
-    "company_phone": "",
-    "email": "privacy@michaellawgroup.com.au"
+    "company_name": "Patrick Hargraves & Co",
+    "address": "Suite 201-203, 806/812 Anzac Parade, Maroubra NSW 2035, Australia",
+    "website": "http://www.patrickhargraves.com.au/",
+    "company_phone": "+61293498666",
+    "email": "info@benchmarklawyers.com.au"
   },
   {
-    "company_name": "Clee Lawyers",
-    "address": "481A New South Head Rd, Double Bay NSW 2028, Australia",
-    "website": "https://www.cleelawyers.com/",
-    "company_phone": "",
-    "email": "office@cleelawyers.com"
-  },
-  {
-    "company_name": "Darian Iacono Solicitor",
-    "address": "376/382 New South Head Rd, Double Bay NSW 2028, Australia",
-    "website": "http://www.andlegal.com.au/",
-    "company_phone": "+61293282944",
-    "first_name": "Darian",
-    "last_name": "Iacono",
-    "email": "diacono@andlegal.com.au",
-    "title": "Owner",
-    "linkedin_url": "http://www.linkedin.com/in/andlegal"
-  },
-  {
-    "company_name": "Coopers Law Firm",
-    "address": "Double Bay, NSW 2028, Australia",
-    "website": "http://cooperslawfirm.com.au/",
-    "company_phone": "+61405202606"
-  },
-  {
-    "company_name": "Moustacas Legal",
-    "address": "Suite 2/6 Cross St, Double Bay NSW 2028, Australia",
-    "website": "http://moustacas.com.au/",
-    "company_phone": "+61293876866",
-    "first_name": "Emmanuel",
-    "last_name": "Penglis",
-    "email": "emmanuel@moustacas.com.au",
-    "title": "Solicitor",
-    "linkedin_url": "http://www.linkedin.com/in/emmanuel-penglis-8213268a"
-  },
-  {
-    "company_name": "Crumblin & Co",
-    "address": "208 Coogee Bay Rd, Coogee NSW 2034, Australia",
+    "company_name": "Frankie Chan & Co. Solicitors",
+    "address": "20 Torrington Rd, Maroubra NSW 2035, Australia",
     "website": "",
-    "company_phone": "+61296652965"
-  },
-  {
-    "company_name": "Aaron O’Rourke",
-    "address": "19-21 Alfreda St, Coogee NSW 2034, Australia",
-    "website": "http://coogeelaw.com/",
-    "company_phone": "+61293158132",
-    "email": "info@coogeelaw.com"
-  },
-  {
-    "company_name": "Ross Ward Lawyers",
-    "address": "302a Rainbow St, Coogee NSW 2034, Australia",
-    "website": "http://www.rosswardlawyers.com.au/",
-    "company_phone": "+61415511967",
-    "email": "rossward@rosswardlawyers.com.au"
-  },
-  {
-    "company_name": "VICTIM ADVOCATES INTERNATIONAL",
-    "address": "5/178 Oberon St, Coogee NSW 2034, Australia",
-    "website": "http://victimadvocatesinternational.org/",
-    "company_phone": "",
-    "first_name": "Eva",
-    "last_name": "Buzo",
-    "email": "e.buzo@victimadvocatesinternational.org",
-    "title": "Executive Director",
-    "linkedin_url": "http://www.linkedin.com/in/eva-buzo-93b247211"
+    "company_phone": "+61292818988"
   },
   {
     "company_name": "Bay Legal",
     "address": "Suite 5, Level 4/832B Anzac Parade, Maroubra NSW 2035, Australia",
     "website": "http://www.baylegal.com.au/",
     "company_phone": "+61293440682",
-    "first_name": "Donna",
-    "last_name": "Carroll",
-    "email": "dcarroll@baylegal.co.nz",
-    "title": "Owner",
-    "linkedin_url": "http://www.linkedin.com/in/donna-carroll-33780b43"
+    "first_name": "Penelope",
+    "last_name": "Wright",
+    "email": "penny.wright@baylegal.com.au",
+    "title": "Senior Associate",
+    "linkedin_url": "http://www.linkedin.com/in/penelope-wright-11743abb"
   },
   {
-    "company_name": "Joseph Lawyers",
-    "address": "38 Bundock St, Randwick NSW 2031, Australia",
-    "website": "http://www.josephlawyers.com.au/",
-    "company_phone": "+61418413889",
-    "first_name": "Mark",
-    "last_name": "Joseph",
-    "email": "mark@josephlawyers.com.au",
-    "title": "Principal Lawyer",
-    "linkedin_url": "http://www.linkedin.com/in/mark-joseph-7a948966"
+    "company_name": "Mujtabaa Law",
+    "address": "11 French St, Maroubra NSW 2035, Australia",
+    "website": "http://mujtabaalaw.com/",
+    "company_phone": "",
+    "email": "support@mujtabaalaw.com"
   },
   {
     "company_name": "Benchmark Lawyers",
@@ -110,20 +46,39 @@
     "linkedin_url": "http://www.linkedin.com/in/francoise-loomans-669b8b142"
   },
   {
-    "company_name": "Peter Loh and Co Solicitors",
-    "address": "2/486 Bunnerong Rd, Matraville NSW 2036, Australia",
-    "website": "http://www.peterloh.com.au/",
-    "company_phone": "+61296611802",
-    "first_name": "Grant",
-    "last_name": "Wu",
-    "email": "grant.wu@peterloh.com.au",
-    "title": "Paralegal",
-    "linkedin_url": "http://www.linkedin.com/in/grant-wu-0239a9202"
+    "company_name": "VC Lawyers",
+    "address": "Suite 4/45-47 Belmore Rd, Randwick NSW 2031, Australia",
+    "website": "https://vclawyers.com.au/",
+    "company_phone": "",
+    "first_name": "Pelagio",
+    "last_name": "Palma",
+    "email": "raffy@vclawyers.com.au",
+    "title": "Director",
+    "linkedin_url": "http://www.linkedin.com/in/pelagiopalmajr"
   },
   {
-    "company_name": "Frazi Lawyers",
-    "address": "2/551 Bunnerong Rd, Matraville NSW 2036, Australia",
-    "website": "",
-    "company_phone": "+61296614333"
+    "company_name": "Joseph Lawyers",
+    "address": "38 Bundock St, Randwick NSW 2031, Australia",
+    "website": "http://www.josephlawyers.com.au/",
+    "company_phone": "+61418413889",
+    "first_name": "Mark",
+    "last_name": "Joseph",
+    "email": "mark@josephlawyers.com.au",
+    "title": "Principal Lawyer",
+    "linkedin_url": "http://www.linkedin.com/in/mark-joseph-7a948966"
+  },
+  {
+    "company_name": "LAWBIZ",
+    "address": "8 Keysor Rd, Maroubra NSW 2035, Australia",
+    "website": "http://www.lawbiz.com.au/",
+    "company_phone": "+61414933773",
+    "email": "debbie@lawbiz.com.au"
+  },
+  {
+    "company_name": "The Barlow Law Firm, LLC",
+    "address": "3285 S AZ-389 #101, Fredonia, AZ 86022",
+    "website": "http://barlowlawgroup.com/",
+    "company_phone": "+16024618863",
+    "email": "filler@godaddy.com"
   }
 ]
