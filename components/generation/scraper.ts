@@ -46,9 +46,8 @@ async function checkLocation(userInput: string): Promise<string> {
       return result.isBroadLocation ? "yes" : "no";
     } else {
       console.log("Result is null or undefined.");
-      return "no";  // Default fallback value
+      return "no"; // Default fallback value
     }
-    
   } catch (error) {
     console.error("Error during location check:", error);
     throw error; // Rethrow the error if necessary
@@ -58,10 +57,10 @@ async function checkLocation(userInput: string): Promise<string> {
 // Function to call Perplexity API and get suburbs list
 async function listSuburbs(location: string): Promise<string> {
   const options = {
-    method: 'POST',
+    method: "POST",
     headers: {
-      Authorization: 'Bearer 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',
-      'Content-Type': 'application/json'
+      Authorization: "Bearer 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",
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       model: "llama-3.1-sonar-huge-128k-online",
@@ -73,7 +72,7 @@ async function listSuburbs(location: string): Promise<string> {
         {
           role: "user",
           content: location,
-        }
+        },
       ],
       temperature: 0.2,
       top_p: 0.9,
@@ -85,12 +84,12 @@ async function listSuburbs(location: string): Promise<string> {
       top_k: 0,
       stream: false,
       presence_penalty: 0,
-      frequency_penalty: 1
-    })
+      frequency_penalty: 1,
+    }),
   };
 
   try {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', options);
+    const response = await fetch("https://api.perplexity.ai/chat/completions", options);
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -99,18 +98,16 @@ async function listSuburbs(location: string): Promise<string> {
     const data = await response.json();
     const messageContent = data.choices[0].message.content;
 
-    console.log('Suburbs List:', messageContent);
+    console.log("Suburbs List:", messageContent);
     return messageContent;
   } catch (err) {
-    console.error('Error fetching suburbs list:', err);
+    console.error("Error fetching suburbs list:", err);
     throw err;
   }
 }
 
 // Function to extract structured suburbs from unstructured listSuburbs response
 async function extractSuburbs(unstructuredSuburbs: string): Promise<string[]> {
-  const openai = new OpenAI();
-
   const completion = await openai.beta.chat.completions.parse({
     model: "gpt-4o-2024-08-06",
     messages: [
@@ -135,10 +132,10 @@ async function extractSuburbs(unstructuredSuburbs: string): Promise<string[]> {
   } else {
     throw new Error("Failed to extract structured suburbs.");
   }
-}  
+}
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 // Define the schema for the output structure
 const PersonSchema = z.object({
@@ -184,8 +181,10 @@ interface EnrichmentResult {
 }
 
 // Function to call the mixed people search API and return the highest role person
-async function getHighestRolePerson(organizationDomain: string): Promise<{ id: string; title: string } | null> {
-  const searchUrl = 'https://api.apollo.io/v1/mixed_people/search';
+async function getHighestRolePerson(
+  organizationDomain: string
+): Promise<{ id: string; title: string } | null> {
+  const searchUrl = "https://api.apollo.io/v1/mixed_people/search";
 
   const searchData = {
     q_organization_domains: organizationDomain,
@@ -194,15 +193,15 @@ async function getHighestRolePerson(organizationDomain: string): Promise<{ id: s
   };
 
   const headers = {
-    'Cache-Control': 'no-cache',
-    'Content-Type': 'application/json',
-    'X-Api-Key': 'SFyfgx8nObaztQk9LRGhuA', // Replace with your actual API key
+    "Cache-Control": "no-cache",
+    "Content-Type": "application/json",
+    "X-Api-Key": "SFyfgx8nObaztQk9LRGhuA", // Replace with your actual API key
   };
 
   try {
     // Step 1: Search for people in the organization
     const searchResponse = await fetch(searchUrl, {
-      method: 'POST',
+      method: "POST",
       headers: headers,
       body: JSON.stringify(searchData),
     });
@@ -229,21 +228,21 @@ async function getHighestRolePerson(organizationDomain: string): Promise<{ id: s
 
     // Step 2: Use GPT to find the person with the highest role
     const completion = await openai.beta.chat.completions.parse({
-      model: 'gpt-4o-2024-08-06',
+      model: "gpt-4o-2024-08-06",
       messages: [
         {
-          role: 'system',
+          role: "system",
           content:
-            'You are a helpful assistant that identifies the person with the highest role in a company based on their title.',
+            "You are a helpful assistant that identifies the person with the highest role in a company based on their title.",
         },
         {
-          role: 'user',
+          role: "user",
           content: `Given the following people and their titles: ${JSON.stringify(
             cleanedResults
           )}. Find the person with the highest role.`,
         },
       ],
-      response_format: zodResponseFormat(PersonSchema, 'highest_role_person'),
+      response_format: zodResponseFormat(PersonSchema, "highest_role_person"),
     });
 
     const highestRolePerson: { id: string; title: string } | null =
@@ -255,19 +254,22 @@ async function getHighestRolePerson(organizationDomain: string): Promise<{ id: s
       console.log(`Person with highest role in ${organizationDomain}:`, highestRolePerson);
       return highestRolePerson;
     } else {
-      console.log('Highest role person could not be determined.');
+      console.log("Highest role person could not be determined.");
       return null;
     }
   } catch (error) {
-    console.error('Error with Apollo API request or GPT processing:', error);
+    console.error("Error with Apollo API request or GPT processing:", error);
     return null;
   }
 }
 
 // Function to enrich up to 10 highest role persons at once
-async function enrichHighestRolePersons(highestRolePersons: { id: string; title: string; companyIndex: number }[], savedData: any[]) {
+async function enrichHighestRolePersons(
+  highestRolePersons: { id: string; title: string; companyIndex: number }[],
+  savedData: any[]
+) {
   if (highestRolePersons.length === 0) {
-    console.log('No highest role persons to enrich.');
+    console.log("No highest role persons to enrich.");
     return;
   }
 
@@ -277,17 +279,17 @@ async function enrichHighestRolePersons(highestRolePersons: { id: string; title:
     details: highestRolePersons.map((person) => ({ id: person.id })),
   };
 
-  const enrichmentUrl = 'https://api.apollo.io/api/v1/people/bulk_match';
+  const enrichmentUrl = "https://api.apollo.io/api/v1/people/bulk_match";
 
   const headers = {
-    'Cache-Control': 'no-cache',
-    'Content-Type': 'application/json',
-    'X-Api-Key': 'jocT8BalrlzTi18yZOGBcA', // Replace with your actual API key
+    "Cache-Control": "no-cache",
+    "Content-Type": "application/json",
+    "X-Api-Key": "jocT8BalrlzTi18yZOGBcA", // Replace with your actual API key
   };
 
   try {
     const enrichmentResponse = await fetch(enrichmentUrl, {
-      method: 'POST',
+      method: "POST",
       headers: headers,
       body: JSON.stringify(enrichmentData),
     });
@@ -312,31 +314,28 @@ async function enrichHighestRolePersons(highestRolePersons: { id: string; title:
       const enrichedMatch = enrichedMatchesMap[person.id];
       if (enrichedMatch) {
         const company = savedData[person.companyIndex];
-        company.first_name = enrichedMatch.first_name || '';
-        company.last_name = enrichedMatch.last_name || '';
-        company.email = enrichedMatch.email || '';
+        company.first_name = enrichedMatch.first_name || "";
+        company.last_name = enrichedMatch.last_name || "";
+        company.email = enrichedMatch.email || "";
         company.title = enrichedMatch.title || person.title;
-        company.linkedin_url = enrichedMatch.linkedin_url || '';
-        console.log(
-          `Updated company at index ${person.companyIndex} with contact details:`,
-          {
-            first_name: company.first_name,
-            last_name: company.last_name,
-            email: company.email,
-            title: company.title,
-            linkedin_url: company.linkedin_url,
-          }
-        );
+        company.linkedin_url = enrichedMatch.linkedin_url || "";
+        console.log(`Updated company at index ${person.companyIndex} with contact details:`, {
+          first_name: company.first_name,
+          last_name: company.last_name,
+          email: company.email,
+          title: company.title,
+          linkedin_url: company.linkedin_url,
+        });
       } else {
         console.log(`Enriched data for person ID ${person.id} not found.`);
       }
     });
   } catch (error) {
-    console.error('Error during bulk enrichment:', error);
+    console.error("Error during bulk enrichment:", error);
   }
 }
 
-const { ApifyClient } = require('apify-client');
+const { ApifyClient } = require("apify-client");
 
 // Function to scrape Google Maps for businesses based on business type and location
 async function scrapeGoogleMaps(businessType: string, locationQuery: string): Promise<any[]> {
@@ -354,10 +353,10 @@ async function scrapeGoogleMaps(businessType: string, locationQuery: string): Pr
     searchMatching: "all",
     placeMinimumStars: "",
     skipClosedPlaces: false,
-    allPlacesNoSearchAction: ""
+    allPlacesNoSearchAction: "",
   };
 
-  const client = new ApifyClient({ token: 'apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ' });
+  const client = new ApifyClient({ token: "apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ" });
 
   try {
     // Run the Actor for the specified location and business type
@@ -370,8 +369,8 @@ async function scrapeGoogleMaps(businessType: string, locationQuery: string): Pr
     const results = items.map((item: any) => ({
       company_name: item.title,
       address: item.address,
-      website: item.website || '',
-      company_phone: item.phoneUnformatted || '',
+      website: item.website || "",
+      company_phone: item.phoneUnformatted || "",
     }));
 
     // Log what has been scraped for this suburb
@@ -389,7 +388,7 @@ async function scrapeGoogleMaps(businessType: string, locationQuery: string): Pr
 function removeDuplicates(results: any[]): any[] {
   const seen = new Set();
   return results.filter((item) => {
-    const identifier = item.phone || item.title; // Use phone or title as the unique identifier
+    const identifier = item.company_phone || item.company_name; // Use phone or title as the unique identifier
     if (seen.has(identifier)) {
       return false; // If already seen, remove the duplicate
     }
@@ -405,8 +404,34 @@ function saveToFile(filename: string, data: any) {
   console.log(`Saved JSON data to ${filepath}`);
 }
 
+// Add this function to read the JSON data from the file
+function readJsonFromFile(filename: string): any[] {
+  const filepath = path.join(__dirname, filename);
+  const data = fs.readFileSync(filepath, "utf-8");
+  return JSON.parse(data);
+}
+
+// Function to normalize URLs for consistent mapping
+function normalizeUrl(url: string): string {
+  try {
+    const parsedUrl = new URL(url);
+    // Remove www prefix
+    if (parsedUrl.hostname.startsWith("www.")) {
+      parsedUrl.hostname = parsedUrl.hostname.slice(4);
+    }
+    // Remove trailing slashes
+    return parsedUrl.origin + parsedUrl.pathname.replace(/\/+$/, "");
+  } catch (e) {
+    return url;
+  }
+}
+
 // Helper function to handle actor concurrency and collect results
-async function runActorPool(businessType: string, suburbs: string[], maxConcurrency: number): Promise<any[]> {
+async function runActorPool(
+  businessType: string,
+  suburbs: string[],
+  maxConcurrency: number
+): Promise<any[]> {
   const allResults: any[] = [];
   const allPromises: Promise<void>[] = [];
   let activeCount = 0;
@@ -443,27 +468,20 @@ async function runActorPool(businessType: string, suburbs: string[], maxConcurre
   }).then(() => Promise.all(allPromises).then(() => allResults));
 }
 
-// Add this function to read the JSON data from the file
-function readJsonFromFile(filename: string): any[] {
-  const filepath = path.join(__dirname, filename);
-  const data = fs.readFileSync(filepath, 'utf-8');
-  return JSON.parse(data);
-}
-
 // Main function to generate leads and handle location check + suburbs listing
 export async function generateLeads(businessType: string, location: string): Promise<string> {
   try {
     const locationCheckResult = await checkLocation(location);
-    console.log('Location check result:', locationCheckResult);
+    console.log("Location check result:", locationCheckResult);
 
     let uniqueResults;
 
-    if (locationCheckResult === 'yes') {
-      console.log('Broad location detected, fetching list of suburbs...');
+    if (locationCheckResult === "yes") {
+      console.log("Broad location detected, fetching list of suburbs...");
       const unstructuredSuburbs = await listSuburbs(location);
-      console.log('Suburbs list retrieved:', unstructuredSuburbs);
+      console.log("Suburbs list retrieved:", unstructuredSuburbs);
       const structuredSuburbs = await extractSuburbs(unstructuredSuburbs);
-      console.log('Structured Suburb List:', structuredSuburbs);
+      console.log("Structured Suburb List:", structuredSuburbs);
 
       // Run a pool of 7 actors at a time and collect results
       const allResults = await runActorPool(businessType, structuredSuburbs, 7);
@@ -471,7 +489,7 @@ export async function generateLeads(businessType: string, location: string): Pro
       // Remove duplicates from the combined results
       uniqueResults = removeDuplicates(allResults);
     } else {
-      console.log('Specific location detected, scraping Google Maps...');
+      console.log("Specific location detected, scraping Google Maps...");
       const results = await scrapeGoogleMaps(businessType, location);
 
       // Remove duplicates in case of single-location scraping
@@ -479,10 +497,10 @@ export async function generateLeads(businessType: string, location: string): Pro
     }
 
     // Save final results to JSON file
-    saveToFile('finalResults.json', uniqueResults);
+    saveToFile("finalResults.json", uniqueResults);
 
     // Read saved JSON file and process each company domain
-    const savedData: any[] = readJsonFromFile('finalResults.json');
+    const savedData: any[] = readJsonFromFile("finalResults.json");
 
     const highestRolePersons: { id: string; title: string; companyIndex: number }[] = [];
 
@@ -510,11 +528,95 @@ export async function generateLeads(businessType: string, location: string): Pro
     }
 
     // Save the updated savedData back to finalResults.json
-    saveToFile('finalResults.json', savedData);
+    saveToFile("finalResults.json", savedData);
+
+  // --- New Step: Find company emails for companies without email ---
+
+  // Identify companies without email and with website
+  const companiesWithoutEmail = [];
+
+  for (let index = 0; index < savedData.length; index++) {
+    const company = savedData[index];
+    if ((!company.email || company.email.trim() === "") && company.website) {
+      const websiteDomain = new URL(company.website).hostname.replace(/^www\./, '');
+      companiesWithoutEmail.push({ index, website: company.website, domain: websiteDomain });
+    }
+  }
+
+  // Check if there are companies without email
+  if (companiesWithoutEmail.length > 0) {
+    // Prepare startUrls without labels
+    const startUrls = companiesWithoutEmail.map((company) => ({
+      url: company.website,
+    }));
+
+    // Prepare the input to the actor
+    const emailScraperInput = {
+      startUrls,
+      maxRequestsPerStartUrl: 20,
+      maxDepth: 2,
+      maxRequests: 9999999,
+      sameDomain: true,
+      considerChildFrames: true,
+      waitUntil: "domcontentloaded",
+      proxyConfig: {
+        useApifyProxy: true,
+      },
+    };
+
+    // Run the email scraper actor
+    const client = new ApifyClient({ token: "apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ" });
+
+    console.log("Running email scraper actor for companies without email...");
+
+    const run = await client.actor("9Sk4JJhEma9vBKqrg").call(emailScraperInput);
+
+    // Fetch the results
+    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+    // Create a mapping from domain to company indices
+    const domainToCompanyIndices: { [key: string]: number[] } = {};
+
+    for (const company of companiesWithoutEmail) {
+      const domain = company.domain;
+      if (!domainToCompanyIndices[domain]) {
+        domainToCompanyIndices[domain] = [];
+      }
+      domainToCompanyIndices[domain].push(company.index);
+    }
+
+    // Process the results
+    for (const item of items) {
+      const domain = item.domain || "";
+      const emails = item.emails || [];
+
+      const normalizedDomain = domain.replace(/^www\./, '');
+
+      const companyIndices = domainToCompanyIndices[normalizedDomain];
+
+      if (companyIndices && companyIndices.length > 0) {
+        for (const companyIndex of companyIndices) {
+          const company = savedData[companyIndex];
+          if ((!company.email || company.email.trim() === "") && emails.length > 0) {
+            company.email = emails[0]; // Take the first email
+            console.log(`Added email to company at index ${companyIndex}: ${company.email}`);
+          }
+        }
+      } else {
+        console.log(`No matching company found for domain: ${domain}`);
+      }
+    }
+
+    // Save the updated savedData back to finalResults.json
+    saveToFile("finalResults.json", savedData);
+  } else {
+    console.log("No companies without email found.");
+  }
+
 
     return `Lead generation completed. Final results saved with ${uniqueResults.length} unique businesses.`;
   } catch (error) {
-    console.error('Error in the lead generation process:', error);
-    return 'Lead generation failed';
+    console.error("Error in the lead generation process:", error);
+    return "Lead generation failed";
   }
 }
