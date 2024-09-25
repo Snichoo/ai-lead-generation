@@ -4,6 +4,8 @@ import { OpenAI } from "openai";
 import dotenv from "dotenv";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Load the environment variables from the .env file
 dotenv.config();
@@ -133,9 +135,6 @@ async function extractSuburbs(unstructuredSuburbs: string): Promise<string[]> {
     throw new Error("Failed to extract structured suburbs.");
   }
 }
-
-const fs = require("fs");
-const path = require("path");
 
 // Define the schema for the output structure
 const PersonSchema = z.object({
@@ -468,6 +467,113 @@ async function runActorPool(
   }).then(() => Promise.all(allPromises).then(() => allResults));
 }
 
+// Function to sanitize filenames
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+}
+
+// Function to parse address into components
+function parseAddress(address: string) {
+  const regex = /^(.+?),\s*([^,]+)\s+(\w{2,3})\s+(\d{4}),\s*Australia$/;
+  const match = address.match(regex);
+  if (match) {
+    return {
+      streetAddress: match[1].trim(),
+      suburb: match[2].trim(),
+      postcode: match[4].trim(),
+    };
+  } else {
+    return {
+      streetAddress: '',
+      suburb: '',
+      postcode: '',
+    };
+  }
+}
+
+// Function to generate CSV file from JSON data
+async function generateCSVFile(businessType: string, location: string, data: any[]) {
+  const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+
+  // Sanitize business type and location for filename
+  const sanitizedBusinessType = sanitizeFilename(businessType);
+  const sanitizedLocation = sanitizeFilename(location);
+
+  // Prepare the CSV filename
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, '-');
+  const filename = `${sanitizedBusinessType}_${sanitizedLocation}_${timestamp}.csv`;
+
+  // Define the CSV file path
+  const filepath = path.join(__dirname, 'csv', filename);
+
+  // Ensure the 'csv' directory exists
+  fs.mkdirSync(path.dirname(filepath), { recursive: true });
+
+  // Define the CSV columns
+  const csvWriter = createCsvWriter({
+    path: filepath,
+    header: [
+      { id: 'title', title: 'Job Title' },
+      { id: 'first_name', title: 'First Name' },
+      { id: 'last_name', title: 'Last Name' },
+      { id: 'personal_email', title: 'Personal Email Address' },
+      { id: 'company_email', title: 'Company Email Address' },
+      { id: 'phone_number', title: 'Phone Number' },
+      { id: 'linkedin', title: 'LinkedIn' },
+      { id: 'website', title: 'Website' },
+      { id: 'company_name', title: 'Company Name' },
+      { id: 'street_address', title: 'Street No and Name' },
+      { id: 'address_suburb', title: 'Address Suburb' },
+      { id: 'address_postcode', title: 'Address Postcode' },
+      { id: 'postal_address', title: 'Postal Address' },
+      { id: 'postal_suburb', title: 'Postal Suburb' },
+      { id: 'postal_postcode', title: 'Postal PostCode' },
+      { id: 'country', title: 'Country' },
+    ],
+  });
+
+  // Map the JSON data to CSV data
+  const csvData = data.map((item) => {
+    const addressParts = parseAddress(item.address || '');
+
+    return {
+      title: item.title || '',
+      first_name: item.first_name || '',
+      last_name: item.last_name || '',
+      personal_email: item.email || '', // Assuming this is personal email
+      company_email: item.company_email || item.email || '', // Use company_email if available
+      phone_number: item.company_phone || '',
+      linkedin: item.linkedin_url || '',
+      website: item.website || '',
+      company_name: item.company_name || '',
+      street_address: addressParts.streetAddress || '',
+      address_suburb: addressParts.suburb || '',
+      address_postcode: addressParts.postcode || '',
+      postal_address: addressParts.streetAddress || '',
+      postal_suburb: addressParts.suburb || '',
+      postal_postcode: addressParts.postcode || '',
+      country: 'Australia',
+    };
+  });
+
+  // Write the CSV file
+  await csvWriter.writeRecords(csvData);
+
+  console.log(`CSV file saved to ${filepath}`);
+
+  // Calculate the file size
+  const stats = fs.statSync(filepath);
+  const fileSizeInBytes = stats.size;
+
+  // Save the file information to a JSON file for later use
+  saveToFile('csvFileInfo.json', {
+    filename,
+    filepath,
+    fileSizeInBytes,
+  });
+}
+
 // Main function to generate leads and handle location check + suburbs listing
 export async function generateLeads(businessType: string, location: string): Promise<string> {
   try {
@@ -609,6 +715,9 @@ export async function generateLeads(businessType: string, location: string): Pro
 
     // Save the updated savedData back to finalResults.json
     saveToFile("finalResults.json", savedData);
+
+    // Generate the CSV file
+    await generateCSVFile(businessType, location, savedData);
   } else {
     console.log("No companies without email found.");
   }

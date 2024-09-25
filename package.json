@@ -21,6 +21,7 @@
     "apify-client": "^2.9.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "csv-writer": "^1.6.0",
     "dotenv": "^16.4.5",
     "fs": "^0.0.1-security",
     "lucide-react": "^0.428.0",

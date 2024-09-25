@@ -19,6 +19,7 @@ type CardProps = React.ComponentProps<typeof Card>
 export default function CardDemo({ className, ...props }: CardProps) {
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 })
   const [showConfetti, setShowConfetti] = useState(true)
+  const [fileInfo, setFileInfo] = useState<any>(null)
 
   useEffect(() => {
     const { innerWidth: width, innerHeight: height } = window
@@ -28,6 +29,28 @@ export default function CardDemo({ className, ...props }: CardProps) {
 
     return () => clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    // Fetch file info from API
+    async function fetchFileInfo() {
+      const response = await fetch('/api/getFileInfo')
+      const data = await response.json()
+      setFileInfo(data)
+    }
+    fetchFileInfo()
+  }, [])
+
+  const handleDownload = () => {
+    window.location.href = '/api/downloadCSV'
+  }
+
+  const formatFileSize = (bytes: number) => {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+    if (bytes === 0) return 'n/a'
+    const i = parseInt(String(Math.floor(Math.log(bytes) / Math.log(1024))), 10)
+    if (i === 0) return `${bytes} ${sizes[i]}`
+    return `${(bytes / (1024 ** i)).toFixed(1)} ${sizes[i]}`
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -49,14 +72,14 @@ export default function CardDemo({ className, ...props }: CardProps) {
               <FileSpreadsheet className="h-8 w-8 text-blue-500 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium leading-none truncate">
-                  monthly_report_lead_generation_data_analysis.csv
+                  {fileInfo ? fileInfo.filename : 'Loading...'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  CSV File • 2.5 MB
+                  CSV File • {fileInfo ? formatFileSize(fileInfo.fileSizeInBytes) : 'Loading...'}
                 </p>
               </div>
             </div>
-            <Button className="w-full">
+            <Button className="w-full" onClick={handleDownload} disabled={!fileInfo}>
               <Download className="mr-2 h-4 w-4" /> Download
             </Button>
           </CardContent>
