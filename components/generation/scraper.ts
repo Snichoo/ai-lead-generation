@@ -61,7 +61,7 @@ async function listSuburbs(location: string): Promise<string> {
   const options = {
     method: "POST",
     headers: {
-      Authorization: "Bearer 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",
+      Authorization: "Bearer YOUR_PERPLEXITY_API_KEY",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -166,7 +166,6 @@ interface SearchResultPerson {
   // Add other properties as needed
 }
 
-
 interface SearchResult {
   people: SearchResultPerson[];
   // Add other properties as needed
@@ -202,7 +201,7 @@ async function getHighestRolePerson(
   const headers = {
     "Cache-Control": "no-cache",
     "Content-Type": "application/json",
-    "X-Api-Key": "SFyfgx8nObaztQk9LRGhuA", // Replace with your actual API key
+    "X-Api-Key": "YOUR_APOLLO_SEARCH_API_KEY", // Replace with your actual API key
   };
 
   try {
@@ -289,7 +288,6 @@ async function getHighestRolePerson(
   }
 }
 
-
 // Function to enrich up to 10 highest role persons at once
 async function enrichHighestRolePersons(
   highestRolePersons: { id: string; title: string; companyIndex: number }[],
@@ -311,7 +309,7 @@ async function enrichHighestRolePersons(
   const headers = {
     "Cache-Control": "no-cache",
     "Content-Type": "application/json",
-    "X-Api-Key": "jocT8BalrlzTi18yZOGBcA", // Replace with your actual API key
+    "X-Api-Key": "YOUR_APOLLO_ENRICHMENT_API_KEY", // Replace with your actual API key
   };
 
   try {
@@ -343,13 +341,13 @@ async function enrichHighestRolePersons(
         const company = savedData[person.companyIndex];
         company.first_name = enrichedMatch.first_name || "";
         company.last_name = enrichedMatch.last_name || "";
-        company.email = enrichedMatch.email || "";
+        company.company_personal_email = enrichedMatch.email || ""; // Changed from 'email' to 'company_personal_email'
         company.title = enrichedMatch.title || person.title;
         company.linkedin_url = enrichedMatch.linkedin_url || "";
         console.log(`Updated company at index ${person.companyIndex} with contact details:`, {
           first_name: company.first_name,
           last_name: company.last_name,
-          email: company.email,
+          company_personal_email: company.company_personal_email,
           title: company.title,
           linkedin_url: company.linkedin_url,
         });
@@ -383,7 +381,7 @@ async function scrapeGoogleMaps(businessType: string, locationQuery: string): Pr
     allPlacesNoSearchAction: "",
   };
 
-  const client = new ApifyClient({ token: "apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ" });
+  const client = new ApifyClient({ token: "YOUR_APIFY_API_TOKEN" });
 
   try {
     // Run the Actor for the specified location and business type
@@ -569,8 +567,8 @@ async function generateCSVFile(businessType: string, location: string, data: any
       title: item.title || '',
       first_name: item.first_name || '',
       last_name: item.last_name || '',
-      personal_email: item.email || '', // Assuming this is personal email
-      company_email: item.company_email || item.email || '', // Use company_email if available
+      personal_email: item.company_personal_email || '', // Updated to use 'company_personal_email'
+      company_email: item.company_general_email || '', // Updated to use 'company_general_email'
       phone_number: item.company_phone || '',
       linkedin: item.linkedin_url || '',
       website: item.website || '',
@@ -602,7 +600,6 @@ async function generateCSVFile(businessType: string, location: string, data: any
   });
 }
 
-// Main function to generate leads and handle location check + suburbs listing
 // Main function to generate leads and handle location check + suburbs listing
 export async function generateLeads(businessType: string, location: string): Promise<string> {
   try {
@@ -690,92 +687,98 @@ export async function generateLeads(businessType: string, location: string): Pro
     // Save the updated savedData back to finalResults.json
     saveToFile("finalResults.json", savedData);
 
-  // --- New Step: Find company emails for companies without email ---
+    // --- New Step: Find company emails for companies without email ---
 
-  // Identify companies without email and with website
-  const companiesWithoutEmail = [];
+    // Identify companies without both personal and general emails and with website
+    const companiesWithoutEmail = [];
 
-  for (let index = 0; index < savedData.length; index++) {
-    const company = savedData[index];
-    if ((!company.email || company.email.trim() === "") && company.website) {
-      const websiteDomain = new URL(company.website).hostname.replace(/^www\./, '');
-      companiesWithoutEmail.push({ index, website: company.website, domain: websiteDomain });
-    }
-  }
-
-  // Check if there are companies without email
-  if (companiesWithoutEmail.length > 0) {
-    // Prepare startUrls without labels
-    const startUrls = companiesWithoutEmail.map((company) => ({
-      url: company.website,
-    }));
-
-    // Prepare the input to the actor
-    const emailScraperInput = {
-      startUrls,
-      maxRequestsPerStartUrl: 20,
-      maxDepth: 2,
-      maxRequests: 9999999,
-      sameDomain: true,
-      considerChildFrames: true,
-      waitUntil: "domcontentloaded",
-      proxyConfig: {
-        useApifyProxy: true,
-      },
-    };
-
-    // Run the email scraper actor
-    const client = new ApifyClient({ token: "apify_api_bYP6N7TcTOyoIoUcfc9yqM4rSfTRff40K3JQ" });
-
-    console.log("Running email scraper actor for companies without email...");
-
-    const run = await client.actor("9Sk4JJhEma9vBKqrg").call(emailScraperInput);
-
-    // Fetch the results
-    const { items } = await client.dataset(run.defaultDatasetId).listItems();
-
-    // Create a mapping from domain to company indices
-    const domainToCompanyIndices: { [key: string]: number[] } = {};
-
-    for (const company of companiesWithoutEmail) {
-      const domain = company.domain;
-      if (!domainToCompanyIndices[domain]) {
-        domainToCompanyIndices[domain] = [];
+    for (let index = 0; index < savedData.length; index++) {
+      const company = savedData[index];
+      if (
+        (!company.company_personal_email || company.company_personal_email.trim() === "") &&
+        (!company.company_general_email || company.company_general_email.trim() === "") &&
+        company.website
+      ) {
+        const websiteDomain = new URL(company.website).hostname.replace(/^www\./, '');
+        companiesWithoutEmail.push({ index, website: company.website, domain: websiteDomain });
       }
-      domainToCompanyIndices[domain].push(company.index);
     }
 
-    // Process the results
-    for (const item of items) {
-      const domain = item.domain || "";
-      const emails = item.emails || [];
+    // Check if there are companies without email
+    if (companiesWithoutEmail.length > 0) {
+      // Prepare startUrls without labels
+      const startUrls = companiesWithoutEmail.map((company) => ({
+        url: company.website,
+      }));
 
-      const normalizedDomain = domain.replace(/^www\./, '');
+      // Prepare the input to the actor
+      const emailScraperInput = {
+        startUrls,
+        maxRequestsPerStartUrl: 20,
+        maxDepth: 2,
+        maxRequests: 9999999,
+        sameDomain: true,
+        considerChildFrames: true,
+        waitUntil: "domcontentloaded",
+        proxyConfig: {
+          useApifyProxy: true,
+        },
+      };
 
-      const companyIndices = domainToCompanyIndices[normalizedDomain];
+      // Run the email scraper actor
+      const client = new ApifyClient({ token: "YOUR_APIFY_API_TOKEN" });
 
-      if (companyIndices && companyIndices.length > 0) {
-        for (const companyIndex of companyIndices) {
-          const company = savedData[companyIndex];
-          if ((!company.email || company.email.trim() === "") && emails.length > 0) {
-            company.email = emails[0]; // Take the first email
-            console.log(`Added email to company at index ${companyIndex}: ${company.email}`);
-          }
+      console.log("Running email scraper actor for companies without email...");
+
+      const run = await client.actor("9Sk4JJhEma9vBKqrg").call(emailScraperInput);
+
+      // Fetch the results
+      const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+      // Create a mapping from domain to company indices
+      const domainToCompanyIndices: { [key: string]: number[] } = {};
+
+      for (const company of companiesWithoutEmail) {
+        const domain = company.domain;
+        if (!domainToCompanyIndices[domain]) {
+          domainToCompanyIndices[domain] = [];
         }
-      } else {
-        console.log(`No matching company found for domain: ${domain}`);
+        domainToCompanyIndices[domain].push(company.index);
       }
+
+      // Process the results
+      for (const item of items) {
+        const domain = item.domain || "";
+        const emails = item.emails || [];
+
+        const normalizedDomain = domain.replace(/^www\./, '');
+
+        const companyIndices = domainToCompanyIndices[normalizedDomain];
+
+        if (companyIndices && companyIndices.length > 0) {
+          for (const companyIndex of companyIndices) {
+            const company = savedData[companyIndex];
+            if (
+              (!company.company_general_email || company.company_general_email.trim() === "") &&
+              emails.length > 0
+            ) {
+              company.company_general_email = emails[0]; // Take the first email
+              console.log(`Added general email to company at index ${companyIndex}: ${company.company_general_email}`);
+            }
+          }
+        } else {
+          console.log(`No matching company found for domain: ${domain}`);
+        }
+      }
+
+      // Save the updated savedData back to finalResults.json
+      saveToFile("finalResults.json", savedData);
+
+      // Generate the CSV file
+      await generateCSVFile(businessType, location, savedData);
+    } else {
+      console.log("No companies without email found.");
     }
-
-    // Save the updated savedData back to finalResults.json
-    saveToFile("finalResults.json", savedData);
-
-    // Generate the CSV file
-    await generateCSVFile(businessType, location, savedData);
-  } else {
-    console.log("No companies without email found.");
-  }
-
 
     return `Lead generation completed. Final results saved with ${uniqueResults.length} unique businesses.`;
   } catch (error) {
