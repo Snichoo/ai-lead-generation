@@ -533,7 +533,7 @@ async function generateCSVFile(businessType: string, location: string, data: any
 
   // Prepare the CSV filename
   const now = new Date();
-  const timestamp = now.toISOString().replace(/[:.]/g, '-');
+  const timestamp = now.toISOString().slice(0, 16).replace(/[:.]/g, '-');
   const filename = `${sanitizedBusinessType}_${sanitizedLocation}_${timestamp}.csv`;
 
   // Define the CSV file path in public/csv/
