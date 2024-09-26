@@ -602,8 +602,10 @@ async function generateCSVFile(businessType: string, location: string, data: any
   });
 }
 
-async function filterLargeCompanies(companies: any[]): Promise<void> {
-  const companyNames = companies.map((company) => company.company_name).join("\n");
+// Function to filter large companies using Perplexity and remove them from savedData
+async function filterLargeCompanies(companies: any[]): Promise<string[]> {
+  // Prepare the company list with IDs
+  const companyList = companies.map((company) => `${company.id}: ${company.company_name}`).join("\n");
 
   const options = {
     method: "POST",
@@ -619,11 +621,11 @@ async function filterLargeCompanies(companies: any[]): Promise<void> {
         {
           role: "system",
           content:
-            "Imagine you are a small business broker. You get a list of companies to cold email. But some of the companies in the list are big companies, franchises etc that a small business broker shouldn't waste time emailing. I want you to identify if there are any of those kind of companies and if there are then mention them in your output. Don't mention other companies.",
+            "Imagine you are a small business broker. You get a list of companies to cold email. But some of the companies in the list are big companies, franchises etc that a small business broker shouldn't waste time emailing. I want you to identify if there are any of those kind of companies and if there are then mention them in your output. You must refer to them using their ID in the output. Don't mention other companies.",
         },
         {
           role: "user",
-          content: companyNames,
+          content: companyList,
         },
       ],
       temperature: 0.2,
@@ -654,12 +656,50 @@ async function filterLargeCompanies(companies: any[]): Promise<void> {
     const messageContent = data.choices[0].message.content;
 
     console.log("Perplexity Output:", messageContent);
+
+    // Now process messageContent with ChatGPT to extract IDs
+    const largeCompanyIds = await extractLargeCompanyIds(messageContent);
+
+    return largeCompanyIds;
   } catch (err) {
     console.error("Error fetching Perplexity output:", err);
     throw err;
   }
 }
 
+// Function to extract large company IDs from Perplexity output using ChatGPT
+async function extractLargeCompanyIds(perplexityOutput: string): Promise<string[]> {
+  const LargeCompaniesSchema = z.object({
+    ids: z.array(z.string()),
+  });
+
+  const completion = await openai.beta.chat.completions.parse({
+    model: "gpt-4o-2024-08-06",
+    messages: [
+      {
+        role: "system",
+        content:
+          "Extract the IDs of the large companies mentioned in the text. Provide the IDs in a JSON format with key 'ids', which is an array of strings.",
+      },
+      {
+        role: "user",
+        content: perplexityOutput,
+      },
+    ],
+    response_format: zodResponseFormat(LargeCompaniesSchema, "large_companies"),
+  });
+
+  const result = completion.choices[0].message.parsed;
+
+  if (result && result.ids) {
+    return result.ids;
+  } else {
+    console.error("Failed to extract large company IDs from GPT response.");
+    return [];
+  }
+}
+
+// Main function to generate leads and handle location check + suburbs listing
 export async function generateLeads(
   businessType: string,
   location: string
@@ -693,16 +733,36 @@ export async function generateLeads(
     // Save final results to JSON file
     saveToFile("finalResults.json", uniqueResults);
 
-    // Read saved JSON file and process each company domain
-    const savedData: any[] = readJsonFromFile("finalResults.json");
+    // Read saved JSON file and assign IDs to each company
+    let savedData: any[] = readJsonFromFile("finalResults.json");
+
+    // Assign an id to each company
+    for (let i = 0; i < savedData.length; i++) {
+      // Generate an id (not too short)
+      savedData[i].id = `company_${i}_${Date.now()}`;
+    }
+
+    // Save updated savedData back to finalResults.json
+    saveToFile("finalResults.json", savedData);
 
     // New Step: Filter large companies using Perplexity
     console.log("Filtering large companies using Perplexity...");
     const batchSize = 30;
+    const largeCompanyIds = new Set<string>(); // Use a Set to store unique IDs
+
     for (let i = 0; i < savedData.length; i += batchSize) {
       const batch = savedData.slice(i, i + batchSize);
-      await filterLargeCompanies(batch);
+      const ids = await filterLargeCompanies(batch);
+      ids.forEach(id => largeCompanyIds.add(id));
     }
+
+    // Now, remove the companies with IDs in largeCompanyIds from savedData
+    savedData = savedData.filter(company => !largeCompanyIds.has(company.id));
+
+    // Save the updated savedData back to finalResults.json
+    saveToFile("finalResults.json", savedData);
+
+    // Proceed with the rest of the lead generation process using the filtered savedData
 
     const highestRolePersons: {
       id: string;
@@ -858,7 +918,7 @@ export async function generateLeads(
       console.log("No companies without email found.");
     }
 
-    return `Lead generation completed. Final results saved with ${uniqueResults.length} unique businesses.`;
+    return `Lead generation completed. Final results saved with ${savedData.length} unique businesses.`;
   } catch (error) {
     console.error("Error in the lead generation process:", error);
     return "Lead generation failed";
