@@ -63,7 +63,7 @@ async function listSuburbs(location: string): Promise<string> {
     headers: {
       Authorization: `Bearer ${process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || ""}`,
       "Content-Type": "application/json",
-    },    
+    },
     body: JSON.stringify({
       model: "llama-3.1-sonar-huge-128k-online",
       messages: [
@@ -228,17 +228,17 @@ async function getHighestRolePerson(
 
     searchResult.people.forEach((person) => {
       const personDomain =
-        person.organization?.domain || new URL(person.organization?.website_url || '').hostname;
-      if (personDomain) {
-        const normalizedDomain = personDomain.replace(/^www\./, "");
-        if (!peopleByDomain[normalizedDomain]) {
-          peopleByDomain[normalizedDomain] = [];
-        }
-        peopleByDomain[normalizedDomain].push(person);
-      } else {
-        console.log("Person without organization domain:", person);
-      }
-    });
+      person.organization?.domain ||
+      (person.organization?.website_url ? new URL(person.organization.website_url).hostname : null);
+    
+    if (personDomain) {
+      const normalizedDomain = personDomain.toLowerCase().replace(/^www\./, "");
+      peopleByDomain[normalizedDomain] = peopleByDomain[normalizedDomain] || [];
+      peopleByDomain[normalizedDomain].push(person);
+    } else {
+      console.log("Person without organization domain:", person);
+    }
+    })    
 
     const highestRolePersons: { id: string; title: string; domain: string }[] = [];
 
@@ -339,6 +339,10 @@ async function enrichHighestRolePersons(
       const enrichedMatch = enrichedMatchesMap[person.id];
       if (enrichedMatch) {
         const company = savedData[person.companyIndex];
+        if (!company) {
+          console.error(`Company at index ${person.companyIndex} is undefined`);
+          return; // or continue to the next iteration
+        }
         company.first_name = enrichedMatch.first_name || "";
         company.last_name = enrichedMatch.last_name || "";
         company.company_personal_email = enrichedMatch.email || ""; // Changed from 'email' to 'company_personal_email'
@@ -383,7 +387,7 @@ async function scrapeGoogleMaps(businessType: string, locationQuery: string): Pr
 
   const client = new ApifyClient({
     token: process.env.NEXT_PUBLIC_APIFY_API_TOKEN || "",
-  });  
+  });
 
   try {
     // Run the Actor for the specified location and business type
@@ -434,8 +438,12 @@ function saveToFile(filename: string, data: any) {
 
 function readJsonFromFile(filename: string): any[] {
   const filepath = path.join(process.cwd(), 'public', 'csv', filename);
-  const data = fs.readFileSync(filepath, "utf-8");
-  return JSON.parse(data);
+  if (fs.existsSync(filepath)) {
+    const data = fs.readFileSync(filepath, "utf-8");
+    return JSON.parse(data);
+  } else {
+    return [];
+  }
 }
 
 // Function to normalize URLs for consistent mapping
@@ -525,6 +533,16 @@ function parseAddress(address: string) {
 
 // Function to generate CSV file from JSON data
 async function generateCSVFile(businessType: string, location: string, data: any[]) {
+  if (data.length === 0) {
+    console.log("No leads were found. Try changing locations or business type.");
+    // Delete or clear csvFileInfo.json to prevent using old CSV files
+    const csvFileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
+    if (fs.existsSync(csvFileInfoPath)) {
+      fs.unlinkSync(csvFileInfoPath); // Delete the file
+    }
+    return "No leads were found. Try changing locations or business type.";
+  }
+
   const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
   // Sanitize business type and location for filename
@@ -573,8 +591,8 @@ async function generateCSVFile(businessType: string, location: string, data: any
       title: item.title || '',
       first_name: item.first_name || '',
       last_name: item.last_name || '',
-      personal_email: item.company_personal_email || '', // Updated to use 'company_personal_email'
-      company_email: item.company_general_email || '', // Updated to use 'company_general_email'
+      personal_email: item.company_personal_email || '',
+      company_email: item.company_general_email || '',
       phone_number: item.company_phone || '',
       linkedin: item.linkedin_url || '',
       website: item.website || '',
@@ -598,12 +616,23 @@ async function generateCSVFile(businessType: string, location: string, data: any
   const stats = fs.statSync(filepath);
   const fileSizeInBytes = stats.size;
 
-  // Save the file information to a JSON file for later use
-  saveToFile('csvFileInfo.json', {
-    filename,
-    filepath,
-    fileSizeInBytes,
-  });
+  // Only save csvFileInfo.json if the file size is greater than zero
+  if (fileSizeInBytes > 0) {
+    // Save the file information to a JSON file for later use
+    saveToFile('csvFileInfo.json', {
+      filename,
+      filepath,
+      fileSizeInBytes,
+    });
+  } else {
+    // Delete or clear csvFileInfo.json to prevent using old CSV files
+    const csvFileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
+    if (fs.existsSync(csvFileInfoPath)) {
+      fs.unlinkSync(csvFileInfoPath); // Delete the file
+    }
+    console.log("CSV file is empty. No data was written.");
+    return "No leads were found. Try changing locations or business type.";
+  }
 }
 
 // Function to filter large companies using Perplexity and remove them from savedData
@@ -740,6 +769,17 @@ export async function generateLeads(
     // Read saved JSON file and assign IDs to each company
     let savedData: any[] = readJsonFromFile("finalResults.json");
 
+    // Check if no leads were found after initial scraping
+    if (savedData.length === 0) {
+      console.log("No leads were found. Try changing locations or business type.");
+      // Delete or clear csvFileInfo.json to prevent using old CSV files
+      const csvFileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
+      if (fs.existsSync(csvFileInfoPath)) {
+        fs.unlinkSync(csvFileInfoPath); // Delete the file
+      }
+      return "No leads were found. Try changing locations or business type.";
+    }
+
     // Assign an id to each company
     for (let i = 0; i < savedData.length; i++) {
       // Generate an id (not too short)
@@ -781,10 +821,7 @@ export async function generateLeads(
     for (let index = 0; index < savedData.length; index++) {
       const company = savedData[index];
       if (company.website) {
-        const websiteDomain = new URL(company.website).hostname.replace(
-          /^www\./,
-          ""
-        );
+        const websiteDomain = new URL(company.website).hostname.toLowerCase().replace(/^www\./, "");
         domainsBatch.push(websiteDomain);
         domainToCompanyIndex[websiteDomain] = index;
 
@@ -793,9 +830,15 @@ export async function generateLeads(
           const highestRolePersonsBatch = await getHighestRolePerson(domainsBatch);
 
           highestRolePersonsBatch.forEach((person) => {
-            const companyIndex = domainToCompanyIndex[person.domain];
-            highestRolePersons.push({ ...person, companyIndex });
-          });
+            const normalizedDomain = person.domain.toLowerCase();
+            const companyIndex = domainToCompanyIndex[normalizedDomain];
+            
+            if (companyIndex === undefined) {
+              console.error(`Company index not found for domain ${normalizedDomain}`);
+            } else {
+              highestRolePersons.push({ ...person, companyIndex });
+            }
+          })
 
           // Clear the domainsBatch and domainToCompanyIndex
           domainsBatch = [];
@@ -845,7 +888,7 @@ export async function generateLeads(
       }
     }
 
-    // Check if there are companies without email
+    // Proceed to process companies without email if any
     if (companiesWithoutEmail.length > 0) {
       // Prepare startUrls without labels
       const startUrls = companiesWithoutEmail.map((company) => ({
@@ -868,7 +911,7 @@ export async function generateLeads(
 
       const client = new ApifyClient({
         token: process.env.NEXT_PUBLIC_APIFY_API_TOKEN || "", // Load API token from .env.local
-      });      
+      });
 
       console.log("Running email scraper actor for companies without email...");
 
@@ -915,11 +958,15 @@ export async function generateLeads(
 
       // Save the updated savedData back to finalResults.json
       saveToFile("finalResults.json", savedData);
-
-      // Generate the CSV file
-      await generateCSVFile(businessType, location, savedData);
     } else {
       console.log("No companies without email found.");
+    }
+
+    // Generate the CSV file regardless of whether companies without email were found
+    const csvResult = await generateCSVFile(businessType, location, savedData);
+
+    if (csvResult === "No leads were found. Try changing locations or business type.") {
+      return csvResult;
     }
 
     return `Lead generation completed. Final results saved with ${savedData.length} unique businesses.`;

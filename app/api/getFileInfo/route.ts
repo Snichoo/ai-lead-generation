@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 
 export async function GET(request: Request) {
-  // Update the path to match where csvFileInfo.json is saved
   const fileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
 
   try {
@@ -15,3 +14,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'File info not found' }, { status: 404 });
   }
 }
+

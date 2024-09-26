@@ -40,10 +40,16 @@ export default function Home() {
     console.log("Submitting data: ", values);
 
     try {
-      await generateLeads(values.businessType, values.location);
-      // Redirect to /dashboard/download after success
-      router.push("/dashboard/download");
-      // No need to set isLoading to false here
+      const result = await generateLeads(values.businessType, values.location);
+      if (result === "Lead generation failed" || result.startsWith("No leads were found")) {
+        // Redirect to /dashboard/download with error message
+        router.push(
+          `/dashboard/download?error=${encodeURIComponent(result)}`
+        );
+      } else {
+        // Redirect to /dashboard/download after success
+        router.push("/dashboard/download");
+      }
     } catch (error) {
       console.error("Error generating leads:", error);
       // Redirect to /dashboard/download with error message
@@ -52,9 +58,8 @@ export default function Home() {
           "An error occurred while generating leads."
         )}`
       );
-      // No need to set isLoading to false here either
     }
-    // Remove the setIsLoading(false); from the finally block
+    // No need to set isLoading to false here; loading will stop after navigation
   };
 
   return (
