@@ -4,11 +4,7 @@ import "./globals.css";
 import { cn } from '@/lib/utils'
 import { ClerkProvider } from "@clerk/nextjs"
 
-const fontSans = Plus_Jakarta_Sans({ 
-  subsets: ["latin"],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-sans'
-});
+
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -23,7 +19,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={cn('min-h-screen bg-white font-sans antialiased', fontSans.variable)}>
+        <body className={cn('min-h-screen bg-white ')}>
           {children}
         </body>
       </html>

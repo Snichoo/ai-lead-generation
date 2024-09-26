@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateLeads } from "@/components/generation/scraper";
 import LoadingScreen from "@/components/custom-ui/loading-screen"; // Import the new LoadingScreen component
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 const formSchema = z.object({
   businessType: z.string().nonempty("Business type is required"),
@@ -45,6 +46,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center overflow-hidden">
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
       {isLoading ? (
         <LoadingScreen />  
       ) : (
