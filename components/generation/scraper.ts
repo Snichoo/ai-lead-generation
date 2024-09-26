@@ -602,8 +602,68 @@ async function generateCSVFile(businessType: string, location: string, data: any
   });
 }
 
-// Main function to generate leads and handle location check + suburbs listing
-export async function generateLeads(businessType: string, location: string): Promise<string> {
+async function filterLargeCompanies(companies: any[]): Promise<void> {
+  const companyNames = companies.map((company) => company.company_name).join("\n");
+
+  const options = {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${
+        process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || ""
+      }`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-sonar-huge-128k-online",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Imagine you are a small business broker. You get a list of companies to cold email. But some of the companies in the list are big companies, franchises etc that a small business broker shouldn't waste time emailing. I want you to identify if there are any of those kind of companies and if there are then mention them in your output. Don't mention other companies.",
+        },
+        {
+          role: "user",
+          content: companyNames,
+        },
+      ],
+      temperature: 0.2,
+      top_p: 0.9,
+      return_citations: false,
+      search_domain_filter: ["perplexity.ai"],
+      return_images: false,
+      return_related_questions: false,
+      search_recency_filter: "month",
+      top_k: 0,
+      stream: false,
+      presence_penalty: 0,
+      frequency_penalty: 1,
+    }),
+  };
+
+  try {
+    const response = await fetch(
+      "https://api.perplexity.ai/chat/completions",
+      options
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const messageContent = data.choices[0].message.content;
+
+    console.log("Perplexity Output:", messageContent);
+  } catch (err) {
+    console.error("Error fetching Perplexity output:", err);
+    throw err;
+  }
+}
+
+export async function generateLeads(
+  businessType: string,
+  location: string
+): Promise<string> {
   try {
     const locationCheckResult = await checkLocation(location);
     console.log("Location check result:", locationCheckResult);
@@ -636,8 +696,20 @@ export async function generateLeads(businessType: string, location: string): Pro
     // Read saved JSON file and process each company domain
     const savedData: any[] = readJsonFromFile("finalResults.json");
 
-    const highestRolePersons: { id: string; title: string; domain: string; companyIndex: number }[] =
-      [];
+    // New Step: Filter large companies using Perplexity
+    console.log("Filtering large companies using Perplexity...");
+    const batchSize = 30;
+    for (let i = 0; i < savedData.length; i += batchSize) {
+      const batch = savedData.slice(i, i + batchSize);
+      await filterLargeCompanies(batch);
+    }
+
+    const highestRolePersons: {
+      id: string;
+      title: string;
+      domain: string;
+      companyIndex: number;
+    }[] = [];
 
     let domainsBatch: string[] = [];
     let domainToCompanyIndex: { [domain: string]: number } = {};
@@ -645,7 +717,10 @@ export async function generateLeads(businessType: string, location: string): Pro
     for (let index = 0; index < savedData.length; index++) {
       const company = savedData[index];
       if (company.website) {
-        const websiteDomain = new URL(company.website).hostname.replace(/^www\./, "");
+        const websiteDomain = new URL(company.website).hostname.replace(
+          /^www\./,
+          ""
+        );
         domainsBatch.push(websiteDomain);
         domainToCompanyIndex[websiteDomain] = index;
 
