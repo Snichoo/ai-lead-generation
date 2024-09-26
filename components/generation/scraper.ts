@@ -468,8 +468,12 @@ async function runActorPool(
     function runNextActor() {
       // Start new actors while we haven't reached maxConcurrency and there are suburbs left
       while (activeCount < maxConcurrency && nextIndex < suburbs.length) {
-        const suburb = suburbs[nextIndex++];
+        let suburb = suburbs[nextIndex++];
         activeCount++;
+
+        // Append ", Australia" to the suburb
+        suburb = `${suburb}, Australia`;
+
         console.log(`Starting actor for suburb: ${suburb}`);
         const actorPromise = scrapeGoogleMaps(businessType, suburb)
           .then((results) => {
