@@ -61,9 +61,9 @@ async function listSuburbs(location: string): Promise<string> {
   const options = {
     method: "POST",
     headers: {
-      Authorization: "Bearer YOUR_PERPLEXITY_API_KEY",
+      Authorization: `Bearer ${process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || ""}`,
       "Content-Type": "application/json",
-    },
+    },    
     body: JSON.stringify({
       model: "llama-3.1-sonar-huge-128k-online",
       messages: [
@@ -201,7 +201,7 @@ async function getHighestRolePerson(
   const headers = {
     "Cache-Control": "no-cache",
     "Content-Type": "application/json",
-    "X-Api-Key": "YOUR_APOLLO_SEARCH_API_KEY", // Replace with your actual API key
+    "X-Api-Key": process.env.NEXT_PUBLIC_APOLLO_SEARCH_API_KEY || "",
   };
 
   try {
@@ -309,7 +309,7 @@ async function enrichHighestRolePersons(
   const headers = {
     "Cache-Control": "no-cache",
     "Content-Type": "application/json",
-    "X-Api-Key": "YOUR_APOLLO_ENRICHMENT_API_KEY", // Replace with your actual API key
+    "X-Api-Key": process.env.NEXT_PUBLIC_APOLLO_BULK_MATCH_API_KEY || "",
   };
 
   try {
@@ -381,7 +381,9 @@ async function scrapeGoogleMaps(businessType: string, locationQuery: string): Pr
     allPlacesNoSearchAction: "",
   };
 
-  const client = new ApifyClient({ token: "YOUR_APIFY_API_TOKEN" });
+  const client = new ApifyClient({
+    token: process.env.NEXT_PUBLIC_APIFY_API_TOKEN || "",
+  });  
 
   try {
     // Run the Actor for the specified location and business type
@@ -725,8 +727,9 @@ export async function generateLeads(businessType: string, location: string): Pro
         },
       };
 
-      // Run the email scraper actor
-      const client = new ApifyClient({ token: "YOUR_APIFY_API_TOKEN" });
+      const client = new ApifyClient({
+        token: process.env.NEXT_PUBLIC_APIFY_API_TOKEN || "", // Load API token from .env.local
+      });      
 
       console.log("Running email scraper actor for companies without email...");
 
