@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState } from "react";
 import * as z from "zod";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateLeads } from "@/components/generation/scraper";
+import LoadingScreen from "@/components/custom-ui/loading-screen"; // Import the new LoadingScreen component
 
 const formSchema = z.object({
   businessType: z.string().nonempty("Business type is required"),
@@ -42,63 +43,58 @@ export default function Home() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Scraping Websites...</h2>
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900 mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center">
-      <h1 className="text-4xl font-bold mb-7">Generate Leads</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center overflow-hidden">
+      {isLoading ? (
+        <LoadingScreen />  
+      ) : (
+        <>
+          <h1 className="text-4xl font-bold mb-7">Generate Leads</h1>
 
-      {successMessage && (
-        <div className="mb-4 text-green-500 text-lg">{successMessage}</div>  // Show success message if present
+          {successMessage && (
+            <div className="mb-4 text-green-500 text-lg">{successMessage}</div>  // Show success message if present
+          )}
+
+          <Card className="mx-auto max-w-sm">
+            <CardHeader>
+              <CardTitle className="text-xl">Filters</CardTitle>
+              <CardDescription>
+                Specify business type and location. Limit: 800 leads per generation. Refine filters if expecting to exceed this.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form 
+                className="grid gap-4"
+                onSubmit={form.handleSubmit(handleSubmit)}
+              >
+                <div className="grid gap-2">
+                  <Label htmlFor="business-type">Business Type</Label>
+                  <Input
+                    {...form.register("businessType")}
+                    id="business-type"
+                    placeholder="Enter business type"
+                  />
+                  <p className="text-red-500 text-sm">{form.formState.errors.businessType?.message}</p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    {...form.register("location")}
+                    id="location"
+                    placeholder="Enter business location"
+                  />
+                  <p className="text-red-500 text-sm">{form.formState.errors.location?.message}</p>
+                </div>
+
+                <Button type="submit" className="w-full">
+                  Generate Leads
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </>
       )}
-
-      <Card className="mx-auto max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-xl">Filters</CardTitle>
-          <CardDescription>
-            Specify business type and location. Limit: 800 leads per generation. Refine filters if expecting to exceed this.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form 
-            className="grid gap-4"
-            onSubmit={form.handleSubmit(handleSubmit)}
-          >
-            <div className="grid gap-2">
-              <Label htmlFor="business-type">Business Type</Label>
-              <Input
-                {...form.register("businessType")}
-                id="business-type"
-                placeholder="Enter business type"
-              />
-              <p className="text-red-500 text-sm">{form.formState.errors.businessType?.message}</p>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                {...form.register("location")}
-                id="location"
-                placeholder="Enter business location"
-              />
-              <p className="text-red-500 text-sm">{form.formState.errors.location?.message}</p>
-            </div>
-
-            <Button type="submit" className="w-full">
-              Generate Leads
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
     </div>
   );
 }
