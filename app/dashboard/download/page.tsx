@@ -7,12 +7,7 @@ import Confetti from "react-confetti"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function CardDemo() {
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 })
@@ -51,7 +46,7 @@ export default function CardDemo() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-8">
       {showConfetti && (
         <Confetti
           width={windowDimensions.width}
@@ -59,32 +54,31 @@ export default function CardDemo() {
           recycle={false}
         />
       )}
-      <h1 className="text-4xl font-bold mb-7">Lead Generation Completed🥳</h1>
-      <div className="flex flex-col items-center space-y-4 w-full max-w-[900px]">
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Download CSV File</CardTitle>
+      <div className="flex flex-col items-center space-y-8 w-full max-w-4xl">
+        <Card className="w-full shadow-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-5xl font-bold mb-4">Lead Generation Completed 🥳</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="flex items-center space-x-4 rounded-md border p-4">
-              <FileSpreadsheet className="h-8 w-8 text-blue-500 flex-shrink-0" />
+          <CardContent className="grid gap-8 p-8">
+            <div className="flex items-center space-x-6 rounded-lg border-2 border-blue-200 p-6 bg-blue-50">
+              <FileSpreadsheet className="h-16 w-16 text-blue-500 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium leading-none truncate">
-                  {fileInfo ? fileInfo.filename : 'Loading...'}
-                </p>
-                <p className="text-xs text-muted-foreground">
+              <p className="text-2xl font-medium truncate mb-2" style={{ lineHeight: "1.25", letterSpacing: "0.02em" }}>
+                {fileInfo ? fileInfo.filename : 'Loading...'}
+              </p>
+                <p className="text-lg text-muted-foreground">
                   CSV File • {fileInfo ? formatFileSize(fileInfo.fileSizeInBytes) : 'Loading...'}
                 </p>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <Link href="/dashboard" passHref>
-                <Button variant="outline" className="w-auto">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Return to Dashboard
+                <Button variant="outline" className="text-lg py-6 px-8">
+                  <ArrowLeft className="mr-3 h-6 w-6" /> Return to Dashboard
                 </Button>
               </Link>
-              <Button className="w-auto px-4 py-2" onClick={handleDownload} disabled={!fileInfo}>
-                <Download className="mr-2 h-4 w-4" /> Download
+              <Button className="text-lg py-6 px-8" onClick={handleDownload} disabled={!fileInfo}>
+                <Download className="mr-3 h-6 w-6" /> Download
               </Button>
             </div>
           </CardContent>

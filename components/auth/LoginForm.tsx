@@ -31,13 +31,15 @@ const LoginForm = () => {
   return (
     <form className="flex-1 space-y-6">
       <section className="mb-12 space-y-4">
-        <h1 className="header">Hi there 👋</h1>
+        <h1 className="header">Hi Michael 👋</h1>
         <p className="text-#8D8F92">Get started with lead generation.</p>
       </section>
       <div>
         {/* Hide the Clerk SignUp component with CSS */}
         <div style={{ display: 'none' }}>
-          <SignUp />
+          <SignUp
+          forceRedirectUrl={"/dashboard"}
+          />
         </div>
         <button
           onClick={handleGoogleSignIn}

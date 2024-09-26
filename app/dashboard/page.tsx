@@ -9,8 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateLeads } from "@/components/generation/scraper";
-import LoadingScreen from "@/components/custom-ui/loading-screen"; // Import the new LoadingScreen component
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import LoadingScreen from "@/components/custom-ui/loading-screen";
 
 const formSchema = z.object({
   businessType: z.string().nonempty("Business type is required"),
@@ -19,7 +18,7 @@ const formSchema = z.object({
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(""); // State to store success message
+  const [successMessage, setSuccessMessage] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -34,70 +33,65 @@ export default function Home() {
     console.log("Submitting data: ", values);
 
     try {
-      const result = await generateLeads(values.businessType, values.location);  // Call generateLeads function
-      setSuccessMessage(result);  // Set success message based on the result
+      const result = await generateLeads(values.businessType, values.location);
+      setSuccessMessage(result);
     } catch (error) {
       console.error("Error generating leads:", error);
       setSuccessMessage("An error occurred while generating leads.");
     } finally {
-      setIsLoading(false);  // Stop loading state after completion
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center overflow-hidden">
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-8"> {/* Ensure full width */}
       {isLoading ? (
-        <LoadingScreen />  
+        <LoadingScreen />
       ) : (
-        <>
-          <h1 className="text-4xl font-bold mb-7">Generate Leads</h1>
+        <Card className="w-full max-w-3xl shadow-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-5xl font-bold mb-4">Generate Leads</CardTitle>
+            <CardDescription className="text-xl mb-6">
+              Specify business type and location. Limit: 800 leads per generation. Refine filters if expecting to exceed this.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {successMessage && (
+              <div className="mb-6 text-green-600 text-xl font-semibold text-center">{successMessage}</div>
+            )}
+            <form className="space-y-8" onSubmit={form.handleSubmit(handleSubmit)}>
+              <div className="space-y-4">
+                <Label htmlFor="business-type" className="text-lg">
+                  Business Type
+                </Label>
+                <Input
+                  {...form.register("businessType")}
+                  id="business-type"
+                  placeholder="Enter business type"
+                  className="text-lg p-6"
+                />
+                <p className="text-red-500 text-base">{form.formState.errors.businessType?.message}</p>
+              </div>
 
-          {successMessage && (
-            <div className="mb-4 text-green-500 text-lg">{successMessage}</div>  // Show success message if present
-          )}
+              <div className="space-y-4">
+                <Label htmlFor="location" className="text-lg">
+                  Location
+                </Label>
+                <Input
+                  {...form.register("location")}
+                  id="location"
+                  placeholder="Enter business location"
+                  className="text-lg p-6"
+                />
+                <p className="text-red-500 text-base">{form.formState.errors.location?.message}</p>
+              </div>
 
-          <Card className="mx-auto max-w-sm">
-            <CardHeader>
-              <CardTitle className="text-xl">Filters</CardTitle>
-              <CardDescription>
-                Specify business type and location. Limit: 800 leads per generation. Refine filters if expecting to exceed this.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form 
-                className="grid gap-4"
-                onSubmit={form.handleSubmit(handleSubmit)}
-              >
-                <div className="grid gap-2">
-                  <Label htmlFor="business-type">Business Type</Label>
-                  <Input
-                    {...form.register("businessType")}
-                    id="business-type"
-                    placeholder="Enter business type"
-                  />
-                  <p className="text-red-500 text-sm">{form.formState.errors.businessType?.message}</p>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    {...form.register("location")}
-                    id="location"
-                    placeholder="Enter business location"
-                  />
-                  <p className="text-red-500 text-sm">{form.formState.errors.location?.message}</p>
-                </div>
-
-                <Button type="submit" className="w-full">
-                  Generate Leads
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </>
+              <Button type="submit" className="w-full text-xl py-6">
+                Generate Leads
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
