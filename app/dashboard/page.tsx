@@ -55,7 +55,7 @@ export default function Home() {
       // Redirect to /dashboard/download with error message
       router.push(
         `/dashboard/download?error=${encodeURIComponent(
-          "An error occurred while generating leads."
+          "An error occurred while generating leads. Please try again."
         )}`
       );
     }

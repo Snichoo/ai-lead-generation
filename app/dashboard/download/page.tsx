@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -99,6 +100,9 @@ export default function DownloadPage() {
               <CardTitle className="text-5xl font-bold mb-4">
                 Lead Generation Completed 🥳
               </CardTitle>
+              <CardDescription className="text-xl mb-6">
+              Please download the file now, as you won't be able to return to this page later.
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-8 p-8">
               <div className="flex items-center space-x-6 rounded-lg border-2 border-blue-200 p-6 bg-blue-50">
@@ -106,7 +110,7 @@ export default function DownloadPage() {
                 <div className="flex-1 min-w-0">
                   <p
                     className="text-2xl font-medium truncate mb-2"
-                    style={{ lineHeight: "2", letterSpacing: "0.02em" }}
+                    style={{ lineHeight: "1.4", letterSpacing: "0.02em" }}
                   >
                     {fileInfo && fileInfo.filename
                       ? fileInfo.filename.length > 52

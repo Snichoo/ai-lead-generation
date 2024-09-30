@@ -4,8 +4,11 @@ import { OpenAI } from "openai";
 import dotenv from "dotenv";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
+import axios from "axios";
+import * as cheerio from "cheerio";
+import pLimit from "p-limit";
 
 // Load the environment variables from the .env file
 dotenv.config();
@@ -42,7 +45,8 @@ async function checkLocation(userInput: string): Promise<string> {
     console.log("API request completed successfully.");
     console.log("Completion object received:", completion);
 
-    const result: { isBroadLocation: boolean } | null = completion.choices[0].message.parsed;
+    const result: { isBroadLocation: boolean } | null =
+      completion.choices[0].message.parsed;
 
     if (result !== null && result.isBroadLocation !== undefined) {
       return result.isBroadLocation ? "yes" : "no";
@@ -61,7 +65,9 @@ async function listSuburbs(location: string): Promise<string> {
   const options = {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || ""}`,
+      Authorization: `Bearer ${
+        process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || ""
+      }`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -91,7 +97,10 @@ async function listSuburbs(location: string): Promise<string> {
   };
 
   try {
-    const response = await fetch("https://api.perplexity.ai/chat/completions", options);
+    const response = await fetch(
+      "https://api.perplexity.ai/chat/completions",
+      options
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -113,7 +122,10 @@ async function extractSuburbs(unstructuredSuburbs: string): Promise<string[]> {
   const completion = await openai.beta.chat.completions.parse({
     model: "gpt-4o-2024-08-06",
     messages: [
-      { role: "system", content: "Extract the list of suburbs from the given text." },
+      {
+        role: "system",
+        content: "Extract the list of suburbs from the given text.",
+      },
       { role: "user", content: unstructuredSuburbs },
     ],
     response_format: zodResponseFormat(SuburbListSchema, "suburb_list"),
@@ -219,7 +231,9 @@ async function getHighestRolePerson(
     const searchResult: SearchResult = await searchResponse.json();
 
     if (!searchResult.people || searchResult.people.length === 0) {
-      console.log(`No people found for domains: ${organizationDomains.join(", ")}`);
+      console.log(
+        `No people found for domains: ${organizationDomains.join(", ")}`
+      );
       return [];
     }
 
@@ -228,19 +242,22 @@ async function getHighestRolePerson(
 
     searchResult.people.forEach((person) => {
       const personDomain =
-      person.organization?.domain ||
-      (person.organization?.website_url ? new URL(person.organization.website_url).hostname : null);
-    
-    if (personDomain) {
-      const normalizedDomain = personDomain.toLowerCase().replace(/^www\./, "");
-      peopleByDomain[normalizedDomain] = peopleByDomain[normalizedDomain] || [];
-      peopleByDomain[normalizedDomain].push(person);
-    } else {
-      console.log("Person without organization domain:", person);
-    }
-    })    
+        person.organization?.domain ||
+        (person.organization?.website_url
+          ? new URL(person.organization.website_url).hostname
+          : null);
 
-    const highestRolePersons: { id: string; title: string; domain: string }[] = [];
+      if (personDomain) {
+        const normalizedDomain = personDomain.toLowerCase().replace(/^www\./, "");
+        peopleByDomain[normalizedDomain] = peopleByDomain[normalizedDomain] || [];
+        peopleByDomain[normalizedDomain].push(person);
+      } else {
+        console.log("Person without organization domain:", person);
+      }
+    });
+
+    const highestRolePersons: { id: string; title: string; domain: string }[] =
+      [];
 
     // For each domain, find the person with the highest role
     for (const domain of Object.keys(peopleByDomain)) {
@@ -277,7 +294,9 @@ async function getHighestRolePerson(
       if (highestRolePerson) {
         highestRolePersons.push({ ...highestRolePerson, domain });
       } else {
-        console.log(`Highest role person could not be determined for domain ${domain}.`);
+        console.log(
+          `Highest role person could not be determined for domain ${domain}.`
+        );
       }
     }
 
@@ -340,7 +359,9 @@ async function enrichHighestRolePersons(
       if (enrichedMatch) {
         const company = savedData[person.companyIndex];
         if (!company) {
-          console.error(`Company at index ${person.companyIndex} is undefined`);
+          console.error(
+            `Company at index ${person.companyIndex} is undefined`
+          );
           return; // or continue to the next iteration
         }
         company.first_name = enrichedMatch.first_name || "";
@@ -348,13 +369,16 @@ async function enrichHighestRolePersons(
         company.company_personal_email = enrichedMatch.email || ""; // Changed from 'email' to 'company_personal_email'
         company.title = enrichedMatch.title || person.title;
         company.linkedin_url = enrichedMatch.linkedin_url || "";
-        console.log(`Updated company at index ${person.companyIndex} with contact details:`, {
-          first_name: company.first_name,
-          last_name: company.last_name,
-          company_personal_email: company.company_personal_email,
-          title: company.title,
-          linkedin_url: company.linkedin_url,
-        });
+        console.log(
+          `Updated company at index ${person.companyIndex} with contact details:`,
+          {
+            first_name: company.first_name,
+            last_name: company.last_name,
+            company_personal_email: company.company_personal_email,
+            title: company.title,
+            linkedin_url: company.linkedin_url,
+          }
+        );
       } else {
         console.log(`Enriched data for person ID ${person.id} not found.`);
       }
@@ -367,7 +391,10 @@ async function enrichHighestRolePersons(
 const { ApifyClient } = require("apify-client");
 
 // Function to scrape Google Maps for businesses based on business type and location
-async function scrapeGoogleMaps(businessType: string, locationQuery: string): Promise<any[]> {
+async function scrapeGoogleMaps(
+  businessType: string,
+  locationQuery: string
+): Promise<any[]> {
   const input = {
     searchStringsArray: [businessType],
     locationQuery: locationQuery,
@@ -430,14 +457,14 @@ function removeDuplicates(results: any[]): any[] {
 
 // Function to write the final JSON to a file
 function saveToFile(filename: string, data: any) {
-  const filepath = path.join(process.cwd(), 'public', 'csv', filename);
+  const filepath = path.join(process.cwd(), "public", "csv", filename);
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
   fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
   console.log(`Saved JSON data to ${filepath}`);
 }
 
 function readJsonFromFile(filename: string): any[] {
-  const filepath = path.join(process.cwd(), 'public', 'csv', filename);
+  const filepath = path.join(process.cwd(), "public", "csv", filename);
   if (fs.existsSync(filepath)) {
     const data = fs.readFileSync(filepath, "utf-8");
     return JSON.parse(data);
@@ -447,9 +474,9 @@ function readJsonFromFile(filename: string): any[] {
 }
 
 // Function to normalize URLs for consistent mapping
-function normalizeUrl(url: string): string {
+function normalizeUrl(urlStr: string): string {
   try {
-    const parsedUrl = new URL(url);
+    const parsedUrl = new URL(urlStr);
     // Remove www prefix
     if (parsedUrl.hostname.startsWith("www.")) {
       parsedUrl.hostname = parsedUrl.hostname.slice(4);
@@ -457,7 +484,7 @@ function normalizeUrl(url: string): string {
     // Remove trailing slashes
     return parsedUrl.origin + parsedUrl.pathname.replace(/\/+$/, "");
   } catch (e) {
-    return url;
+    return urlStr;
   }
 }
 
@@ -509,7 +536,7 @@ async function runActorPool(
 
 // Function to sanitize filenames
 function sanitizeFilename(name: string): string {
-  return name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  return name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
 }
 
 // Function to parse address into components
@@ -524,26 +551,35 @@ function parseAddress(address: string) {
     };
   } else {
     return {
-      streetAddress: '',
-      suburb: '',
-      postcode: '',
+      streetAddress: "",
+      suburb: "",
+      postcode: "",
     };
   }
 }
 
 // Function to generate CSV file from JSON data
-async function generateCSVFile(businessType: string, location: string, data: any[]) {
+async function generateCSVFile(
+  businessType: string,
+  location: string,
+  data: any[]
+) {
   if (data.length === 0) {
     console.log("No leads were found. Try changing locations or business type.");
     // Delete or clear csvFileInfo.json to prevent using old CSV files
-    const csvFileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
+    const csvFileInfoPath = path.join(
+      process.cwd(),
+      "public",
+      "csv",
+      "csvFileInfo.json"
+    );
     if (fs.existsSync(csvFileInfoPath)) {
       fs.unlinkSync(csvFileInfoPath); // Delete the file
     }
     return "No leads were found. Try changing locations or business type.";
   }
 
-  const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+  const createCsvWriter = require("csv-writer").createObjectCsvWriter;
 
   // Sanitize business type and location for filename
   const sanitizedBusinessType = sanitizeFilename(businessType);
@@ -551,11 +587,11 @@ async function generateCSVFile(businessType: string, location: string, data: any
 
   // Prepare the CSV filename
   const now = new Date();
-  const timestamp = now.toISOString().slice(0, 16).replace(/[:.]/g, '-');
+  const timestamp = now.toISOString().slice(0, 16).replace(/[:.]/g, "-");
   const filename = `${sanitizedBusinessType}_${sanitizedLocation}_${timestamp}.csv`;
 
   // Define the CSV file path in public/csv/
-  const filepath = path.join(process.cwd(), 'public', 'csv', filename);
+  const filepath = path.join(process.cwd(), "public", "csv", filename);
 
   // Ensure the 'public/csv' directory exists
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
@@ -564,46 +600,46 @@ async function generateCSVFile(businessType: string, location: string, data: any
   const csvWriter = createCsvWriter({
     path: filepath,
     header: [
-      { id: 'title', title: 'Job Title' },
-      { id: 'first_name', title: 'First Name' },
-      { id: 'last_name', title: 'Last Name' },
-      { id: 'personal_email', title: 'Personal Email Address' },
-      { id: 'company_email', title: 'Company Email Address' },
-      { id: 'phone_number', title: 'Phone Number' },
-      { id: 'linkedin', title: 'LinkedIn' },
-      { id: 'website', title: 'Website' },
-      { id: 'company_name', title: 'Company Name' },
-      { id: 'street_address', title: 'Street No and Name' },
-      { id: 'address_suburb', title: 'Address Suburb' },
-      { id: 'address_postcode', title: 'Address Postcode' },
-      { id: 'postal_address', title: 'Postal Address' },
-      { id: 'postal_suburb', title: 'Postal Suburb' },
-      { id: 'postal_postcode', title: 'Postal PostCode' },
-      { id: 'country', title: 'Country' },
+      { id: "title", title: "Job Title" },
+      { id: "first_name", title: "First Name" },
+      { id: "last_name", title: "Last Name" },
+      { id: "personal_email", title: "Personal Email Address" },
+      { id: "company_email", title: "Company Email Address" },
+      { id: "phone_number", title: "Phone Number" },
+      { id: "linkedin", title: "LinkedIn" },
+      { id: "website", title: "Website" },
+      { id: "company_name", title: "Company Name" },
+      { id: "street_address", title: "Street No and Name" },
+      { id: "address_suburb", title: "Address Suburb" },
+      { id: "address_postcode", title: "Address Postcode" },
+      { id: "postal_address", title: "Postal Address" },
+      { id: "postal_suburb", title: "Postal Suburb" },
+      { id: "postal_postcode", title: "Postal PostCode" },
+      { id: "country", title: "Country" },
     ],
   });
 
   // Map the JSON data to CSV data
   const csvData = data.map((item) => {
-    const addressParts = parseAddress(item.address || '');
+    const addressParts = parseAddress(item.address || "");
 
     return {
-      title: item.title || '',
-      first_name: item.first_name || '',
-      last_name: item.last_name || '',
-      personal_email: item.company_personal_email || '',
-      company_email: item.company_general_email || '',
-      phone_number: item.company_phone || '',
-      linkedin: item.linkedin_url || '',
-      website: item.website || '',
-      company_name: item.company_name || '',
-      street_address: addressParts.streetAddress || '',
-      address_suburb: addressParts.suburb || '',
-      address_postcode: addressParts.postcode || '',
-      postal_address: addressParts.streetAddress || '',
-      postal_suburb: addressParts.suburb || '',
-      postal_postcode: addressParts.postcode || '',
-      country: 'Australia',
+      title: item.title || "",
+      first_name: item.first_name || "",
+      last_name: item.last_name || "",
+      personal_email: item.company_personal_email || "",
+      company_email: item.company_general_email || "",
+      phone_number: item.company_phone || "",
+      linkedin: item.linkedin_url || "",
+      website: item.website || "",
+      company_name: item.company_name || "",
+      street_address: addressParts.streetAddress || "",
+      address_suburb: addressParts.suburb || "",
+      address_postcode: addressParts.postcode || "",
+      postal_address: addressParts.streetAddress || "",
+      postal_suburb: addressParts.suburb || "",
+      postal_postcode: addressParts.postcode || "",
+      country: "Australia",
     };
   });
 
@@ -619,14 +655,19 @@ async function generateCSVFile(businessType: string, location: string, data: any
   // Only save csvFileInfo.json if the file size is greater than zero
   if (fileSizeInBytes > 0) {
     // Save the file information to a JSON file for later use
-    saveToFile('csvFileInfo.json', {
+    saveToFile("csvFileInfo.json", {
       filename,
       filepath,
       fileSizeInBytes,
     });
   } else {
     // Delete or clear csvFileInfo.json to prevent using old CSV files
-    const csvFileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
+    const csvFileInfoPath = path.join(
+      process.cwd(),
+      "public",
+      "csv",
+      "csvFileInfo.json"
+    );
     if (fs.existsSync(csvFileInfoPath)) {
       fs.unlinkSync(csvFileInfoPath); // Delete the file
     }
@@ -638,7 +679,9 @@ async function generateCSVFile(businessType: string, location: string, data: any
 // Function to filter large companies using Perplexity and remove them from savedData
 async function filterLargeCompanies(companies: any[]): Promise<string[]> {
   // Prepare the company list with IDs
-  const companyList = companies.map((company) => `${company.id}: ${company.company_name}`).join("\n");
+  const companyList = companies
+    .map((company) => `${company.id}: ${company.company_name}`)
+    .join("\n");
 
   const options = {
     method: "POST",
@@ -701,7 +744,9 @@ async function filterLargeCompanies(companies: any[]): Promise<string[]> {
 }
 
 // Function to extract large company IDs from Perplexity output using ChatGPT
-async function extractLargeCompanyIds(perplexityOutput: string): Promise<string[]> {
+async function extractLargeCompanyIds(
+  perplexityOutput: string
+): Promise<string[]> {
   const LargeCompaniesSchema = z.object({
     ids: z.array(z.string()),
   });
@@ -719,7 +764,10 @@ async function extractLargeCompanyIds(perplexityOutput: string): Promise<string[
         content: perplexityOutput,
       },
     ],
-    response_format: zodResponseFormat(LargeCompaniesSchema, "large_companies"),
+    response_format: zodResponseFormat(
+      LargeCompaniesSchema,
+      "large_companies"
+    ),
   });
 
   const result = completion.choices[0].message.parsed;
@@ -730,6 +778,157 @@ async function extractLargeCompanyIds(perplexityOutput: string): Promise<string[
     console.error("Failed to extract large company IDs from GPT response.");
     return [];
   }
+}
+
+// Function to extract emails from text
+function extractEmails(text: string): string[] {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/gi;
+  let emails: string[] = text.match(emailRegex) || [];
+
+  // Blacklist certain file extensions to filter out false positives
+  const blacklistedExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".svg",
+    ".gif",
+    ".tga",
+    ".bmp",
+    ".zip",
+    ".pdf",
+    ".webp",
+  ];
+
+  emails = emails.filter((email) => {
+    // Convert email and extensions to lowercase for case-insensitive comparison
+    const lowerEmail = email.toLowerCase();
+    return !blacklistedExtensions.some((ext) => lowerEmail.endsWith(ext));
+  });
+
+  return emails;
+}
+
+// Function to extract links from HTML
+function extractLinks(html: string, baseUrl: string): string[] {
+  const $ = cheerio.load(html);
+  const links: string[] = [];
+  $("a[href]").each((i, elem) => {
+    let href = $(elem).attr("href");
+    if (href) {
+      // Remove URL fragments
+      href = href.split("#")[0];
+      // Trim whitespace
+      href = href.trim();
+      // Skip mailto, javascript links, empty or invalid hrefs
+      if (
+        href.startsWith("mailto:") ||
+        href.startsWith("javascript:") ||
+        href === "" ||
+        href === "/" ||
+        href === "https://" ||
+        href === "http://" ||
+        href === "//"
+      ) {
+        return;
+      }
+      // Resolve relative URLs
+      try {
+        const resolvedUrl = new URL(href, baseUrl).toString();
+        // Ensure the link is on the same domain
+        if (resolvedUrl.startsWith(baseUrl)) {
+          links.push(resolvedUrl);
+        }
+      } catch (error) {
+        // Suppress error logging to prevent terminal clutter
+        // You can enable logging by uncommenting the line below
+        // console.warn(`Invalid URL encountered: ${href} - ${error.message}`);
+        // Skip invalid URLs
+      }
+    }
+  });
+  return links;
+}
+
+// Function to fetch a page's HTML content
+async function fetchPage(pageUrl: string): Promise<string | null> {
+  try {
+    const response = await axios.get(pageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; EmailScraper/1.0)",
+      },
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    // Handle errors silently
+    return null;
+  }
+}
+
+// Function to crawl a website and find emails
+async function crawlWebsite(startUrl: string): Promise<string[]> {
+  const emailsFound = new Set<string>();
+  const visited = new Set<string>();
+  const queue: string[] = [];
+
+  const maxPages = 40;
+  let pagesCrawled = 0;
+  let emailFound = false;
+
+  const parsedUrl = new URL(startUrl);
+  const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
+
+  // Start with the main page
+  queue.push(startUrl);
+
+  // Prepare potential contact page URLs
+  const contactPaths = [
+    "/contact",
+    "/contact-us",
+    "/contactus",
+    "/about",
+    "/about-us",
+    "/aboutus",
+    "/impressum",
+  ];
+  for (let path of contactPaths) {
+    queue.push(new URL(path, baseUrl).toString());
+  }
+
+  while (queue.length > 0 && pagesCrawled < maxPages && !emailFound) {
+    const currentUrl = queue.shift();
+
+    if (!currentUrl) continue;
+
+    if (visited.has(currentUrl)) {
+      continue;
+    }
+    visited.add(currentUrl);
+
+    const html = await fetchPage(currentUrl);
+    if (!html) {
+      continue;
+    }
+    pagesCrawled++;
+
+    // Extract emails from page
+    const emails = extractEmails(html);
+    if (emails.length > 0) {
+      emails.forEach((email) => emailsFound.add(email));
+      emailFound = true;
+      break; // Stop crawling this website
+    }
+
+    // Extract links from page
+    const links = extractLinks(html, baseUrl);
+    for (let link of links) {
+      if (!visited.has(link)) {
+        queue.push(link);
+      }
+    }
+  }
+
+  return Array.from(emailsFound);
 }
 
 // Main function to generate leads and handle location check + suburbs listing
@@ -751,7 +950,11 @@ export async function generateLeads(
       console.log("Structured Suburb List:", structuredSuburbs);
 
       // Run a pool of 7 actors at a time and collect results
-      const allResults = await runActorPool(businessType, structuredSuburbs, 7);
+      const allResults = await runActorPool(
+        businessType,
+        structuredSuburbs,
+        7
+      );
 
       // Remove duplicates from the combined results
       uniqueResults = removeDuplicates(allResults);
@@ -773,7 +976,12 @@ export async function generateLeads(
     if (savedData.length === 0) {
       console.log("No leads were found. Try changing locations or business type.");
       // Delete or clear csvFileInfo.json to prevent using old CSV files
-      const csvFileInfoPath = path.join(process.cwd(), 'public', 'csv', 'csvFileInfo.json');
+      const csvFileInfoPath = path.join(
+        process.cwd(),
+        "public",
+        "csv",
+        "csvFileInfo.json"
+      );
       if (fs.existsSync(csvFileInfoPath)) {
         fs.unlinkSync(csvFileInfoPath); // Delete the file
       }
@@ -797,11 +1005,11 @@ export async function generateLeads(
     for (let i = 0; i < savedData.length; i += batchSize) {
       const batch = savedData.slice(i, i + batchSize);
       const ids = await filterLargeCompanies(batch);
-      ids.forEach(id => largeCompanyIds.add(id));
+      ids.forEach((id) => largeCompanyIds.add(id));
     }
 
     // Now, remove the companies with IDs in largeCompanyIds from savedData
-    savedData = savedData.filter(company => !largeCompanyIds.has(company.id));
+    savedData = savedData.filter((company) => !largeCompanyIds.has(company.id));
 
     // Save the updated savedData back to finalResults.json
     saveToFile("finalResults.json", savedData);
@@ -821,24 +1029,30 @@ export async function generateLeads(
     for (let index = 0; index < savedData.length; index++) {
       const company = savedData[index];
       if (company.website) {
-        const websiteDomain = new URL(company.website).hostname.toLowerCase().replace(/^www\./, "");
+        const websiteDomain = new URL(company.website)
+          .hostname.toLowerCase()
+          .replace(/^www\./, "");
         domainsBatch.push(websiteDomain);
         domainToCompanyIndex[websiteDomain] = index;
 
         // When we have collected enough domains, process them
         if (domainsBatch.length === 10) {
-          const highestRolePersonsBatch = await getHighestRolePerson(domainsBatch);
+          const highestRolePersonsBatch = await getHighestRolePerson(
+            domainsBatch
+          );
 
           highestRolePersonsBatch.forEach((person) => {
             const normalizedDomain = person.domain.toLowerCase();
             const companyIndex = domainToCompanyIndex[normalizedDomain];
-            
+
             if (companyIndex === undefined) {
-              console.error(`Company index not found for domain ${normalizedDomain}`);
+              console.error(
+                `Company index not found for domain ${normalizedDomain}`
+              );
             } else {
               highestRolePersons.push({ ...person, companyIndex });
             }
-          })
+          });
 
           // Clear the domainsBatch and domainToCompanyIndex
           domainsBatch = [];
@@ -879,82 +1093,51 @@ export async function generateLeads(
     for (let index = 0; index < savedData.length; index++) {
       const company = savedData[index];
       if (
-        (!company.company_personal_email || company.company_personal_email.trim() === "") &&
-        (!company.company_general_email || company.company_general_email.trim() === "") &&
+        (!company.company_personal_email ||
+          company.company_personal_email.trim() === "") &&
+        (!company.company_general_email ||
+          company.company_general_email.trim() === "") &&
         company.website
       ) {
-        const websiteDomain = new URL(company.website).hostname.replace(/^www\./, '');
-        companiesWithoutEmail.push({ index, website: company.website, domain: websiteDomain });
+        const websiteDomain = new URL(company.website)
+          .hostname.replace(/^www\./, "");
+        companiesWithoutEmail.push({
+          index,
+          website: company.website,
+          domain: websiteDomain,
+        });
       }
     }
 
     // Proceed to process companies without email if any
     if (companiesWithoutEmail.length > 0) {
-      // Prepare startUrls without labels
-      const startUrls = companiesWithoutEmail.map((company) => ({
-        url: company.website,
-      }));
+      console.log("Running email scraper for companies without email...");
 
-      // Prepare the input to the actor
-      const emailScraperInput = {
-        startUrls,
-        maxRequestsPerStartUrl: 20,
-        maxDepth: 2,
-        maxRequests: 9999999,
-        sameDomain: true,
-        considerChildFrames: true,
-        waitUntil: "domcontentloaded",
-        proxyConfig: {
-          useApifyProxy: true,
-        },
-      };
+      const limit = pLimit(5); // Limit concurrency to 5
 
-      const client = new ApifyClient({
-        token: process.env.NEXT_PUBLIC_APIFY_API_TOKEN || "", // Load API token from .env.local
-      });
-
-      console.log("Running email scraper actor for companies without email...");
-
-      const run = await client.actor("9Sk4JJhEma9vBKqrg").call(emailScraperInput);
-
-      // Fetch the results
-      const { items } = await client.dataset(run.defaultDatasetId).listItems();
-
-      // Create a mapping from domain to company indices
-      const domainToCompanyIndices: { [key: string]: number[] } = {};
-
-      for (const company of companiesWithoutEmail) {
-        const domain = company.domain;
-        if (!domainToCompanyIndices[domain]) {
-          domainToCompanyIndices[domain] = [];
-        }
-        domainToCompanyIndices[domain].push(company.index);
-      }
-
-      // Process the results
-      for (const item of items) {
-        const domain = item.domain || "";
-        const emails = item.emails || [];
-
-        const normalizedDomain = domain.replace(/^www\./, '');
-
-        const companyIndices = domainToCompanyIndices[normalizedDomain];
-
-        if (companyIndices && companyIndices.length > 0) {
-          for (const companyIndex of companyIndices) {
-            const company = savedData[companyIndex];
+      const crawlPromises = companiesWithoutEmail.map((company) =>
+        limit(async () => {
+          const emails = await crawlWebsite(company.website);
+          if (emails.length > 0) {
+            // Update the company in savedData
+            const companyIndex = company.index;
+            const companyInSavedData = savedData[companyIndex];
             if (
-              (!company.company_general_email || company.company_general_email.trim() === "") &&
-              emails.length > 0
+              !companyInSavedData.company_general_email ||
+              companyInSavedData.company_general_email.trim() === ""
             ) {
-              company.company_general_email = emails[0]; // Take the first email
-              console.log(`Added general email to company at index ${companyIndex}: ${company.company_general_email}`);
+              companyInSavedData.company_general_email = emails[0]; // Take the first email
+              console.log(
+                `Added general email to company at index ${companyIndex}: ${companyInSavedData.company_general_email}`
+              );
             }
+          } else {
+            console.log(`No emails found for website: ${company.website}`);
           }
-        } else {
-          console.log(`No matching company found for domain: ${domain}`);
-        }
-      }
+        })
+      );
+
+      await Promise.all(crawlPromises);
 
       // Save the updated savedData back to finalResults.json
       saveToFile("finalResults.json", savedData);
@@ -965,7 +1148,9 @@ export async function generateLeads(
     // Generate the CSV file regardless of whether companies without email were found
     const csvResult = await generateCSVFile(businessType, location, savedData);
 
-    if (csvResult === "No leads were found. Try changing locations or business type.") {
+    if (
+      csvResult === "No leads were found. Try changing locations or business type."
+    ) {
       return csvResult;
     }
 
