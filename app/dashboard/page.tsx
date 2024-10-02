@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as z from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateLeads } from "@/components/generation/scraper";
 import LoadingScreen from "@/components/custom-ui/loading-screen";
+import Script from "next/script";
+import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
+
 
 const formSchema = z.object({
   businessType: z.string().nonempty("Business type is required"),
-  location: z.string().nonempty("Location is required"),
+  location: z.object({
+    label: z.string(),
+    value: z.object({
+      place_id: z.string(),
+    }),
+  }).nullable().refine(val => val !== null, {
+    message: "Location is required",
+  }),
 });
 
 export default function Home() {
@@ -31,38 +41,41 @@ export default function Home() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       businessType: "",
-      location: "",
+      location: null as any, // Allow null for location
     },
-  });
+  });  
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     console.log("Submitting data: ", values);
 
     try {
-      const result = await generateLeads(values.businessType, values.location);
+      const result = await generateLeads(values.businessType, values.location?.label || "");
       if (result === "Lead generation failed" || result.startsWith("No leads were found")) {
-        // Redirect to /dashboard/download with error message
         router.push(
           `/dashboard/download?error=${encodeURIComponent(result)}`
         );
       } else {
-        // Redirect to /dashboard/download after success
         router.push("/dashboard/download");
       }
     } catch (error) {
       console.error("Error generating leads:", error);
-      // Redirect to /dashboard/download with error message
       router.push(
         `/dashboard/download?error=${encodeURIComponent(
           "An error occurred while generating leads. Please try again."
         )}`
       );
     }
-    // No need to set isLoading to false here; loading will stop after navigation
   };
 
   return (
+    <>
+<Script
+  src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
+  strategy="lazyOnload"  // Ensure the script is loaded when the page is ready
+  onLoad={() => console.log('Google Maps script loaded successfully')}
+  onError={(e) => console.log('Error loading Google Maps script', e)}
+/>
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-8">
       {isLoading ? (
         <LoadingScreen />
@@ -101,11 +114,28 @@ export default function Home() {
                 <Label htmlFor="location" className="text-lg">
                   Location
                 </Label>
-                <Input
-                  {...form.register("location")}
-                  id="location"
-                  placeholder="Enter business location"
-                  className="text-lg p-6"
+                <Controller
+                  name="location"
+                  control={form.control}
+                  render={({ field }) => (
+                    <GooglePlacesAutocomplete
+                      apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                      selectProps={{
+                        value: field.value,
+                        onChange: field.onChange,
+                        placeholder: "Enter business location",
+                        isClearable: true,
+                        className: "text-lg",
+                        styles: {
+                          control: (provided) => ({
+                            ...provided,
+                            padding: '0.5rem',
+                            borderRadius: '0.375rem',
+                          }),
+                        },
+                      }}
+                    />
+                  )}
                 />
                 <p className="text-red-500 text-base">
                   {form.formState.errors.location?.message}
@@ -120,5 +150,6 @@ export default function Home() {
         </Card>
       )}
     </div>
+    </>
   );
 }
