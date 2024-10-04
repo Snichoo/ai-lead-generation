@@ -70,12 +70,6 @@ export default function Home() {
 
   return (
     <>
-<Script
-  src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
-  strategy="lazyOnload"  // Ensure the script is loaded when the page is ready
-  onLoad={() => console.log('Google Maps script loaded successfully')}
-  onError={(e) => console.log('Error loading Google Maps script', e)}
-/>
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-8">
       {isLoading ? (
         <LoadingScreen />
