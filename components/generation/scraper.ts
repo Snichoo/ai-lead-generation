@@ -425,7 +425,7 @@ async function scrapeGoogleMaps(
   };
 
   try {
-    const response = await axios.post(endpoint, requestData, { headers });
+    const response = await axios.post(endpoint, requestData, { headers, timeout: 60000 }); // Set 60 seconds timeout
 
     if (response.status !== 200) {
       throw new Error(`Error fetching data: ${response.statusText}`);
@@ -687,6 +687,7 @@ async function generateCSVFile(
   }
 }
 
+// Function to filter large companies using Perplexity and remove them from savedData
 // Function to filter large companies using Perplexity and remove them from savedData
 async function filterLargeCompanies(companies: any[]): Promise<string[]> {
   // Prepare the company list with IDs
@@ -1070,19 +1071,39 @@ export async function generateLeads(
     // Save updated savedData back to finalResults.json
     saveToFile("finalResults.json", savedData);
 
-    // New Step: Filter large companies using Perplexity
-    console.log("Filtering large companies using Perplexity...");
-    const batchSize = 30;
-    const largeCompanyIds = new Set<string>(); // Use a Set to store unique IDs
+// New Step: Filter large companies using Perplexity
+console.log("Filtering large companies using Perplexity...");
+const batchSize = 30;
+const largeCompanyIds = new Set<string>(); // Use a Set to store unique IDs
 
-    for (let i = 0; i < savedData.length; i += batchSize) {
-      const batch = savedData.slice(i, i + batchSize);
+const limit = pLimit(5); // Limit concurrency to 5
+const batchPromises = [];
+
+for (let i = 0; i < savedData.length; i += batchSize) {
+  const batch = savedData.slice(i, i + batchSize);
+  const promise = limit(async () => {
+    try {
       const ids = await filterLargeCompanies(batch);
-      ids.forEach((id) => largeCompanyIds.add(id));
+      return ids;
+    } catch (error) {
+      console.error("Error in batch processing:", error);
+      return []; // Return empty array on error to continue processing other batches
     }
+  });
+  batchPromises.push(promise);
+}
 
-    // Now, remove the companies with IDs in largeCompanyIds from savedData
-    savedData = savedData.filter((company) => !largeCompanyIds.has(company.id));
+// Now, await all promises
+const batchResults = await Promise.all(batchPromises);
+
+// Collect all IDs
+batchResults.forEach((ids) => {
+  ids.forEach((id) => largeCompanyIds.add(id));
+});
+
+// Now, remove the companies with IDs in largeCompanyIds from savedData
+savedData = savedData.filter((company) => !largeCompanyIds.has(company.id));
+
 
     // Save the updated savedData back to finalResults.json
     saveToFile("finalResults.json", savedData);
