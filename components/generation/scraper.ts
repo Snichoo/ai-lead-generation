@@ -425,7 +425,7 @@ async function scrapeGoogleMaps(
   };
 
   try {
-    const response = await axios.post(endpoint, requestData, { headers, timeout: 60000 }); // Set 60 seconds timeout
+    const response = await axios.post(endpoint, requestData, { headers, timeout: 120000 }); // Set 60 seconds timeout
 
     if (response.status !== 200) {
       throw new Error(`Error fetching data: ${response.statusText}`);
