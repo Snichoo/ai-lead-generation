@@ -307,7 +307,6 @@ async function getHighestRolePerson(
   }
 }
 
-// Function to enrich up to 10 highest role persons at once
 async function enrichHighestRolePersons(
   highestRolePersons: { id: string; title: string; companyIndex: number }[],
   savedData: any[]
@@ -332,6 +331,15 @@ async function enrichHighestRolePersons(
   };
 
   try {
+    console.log(
+      "Starting bulk enrichment for persons:",
+      highestRolePersons
+    );
+    console.log(
+      "Enrichment data payload being sent:",
+      JSON.stringify(enrichmentData, null, 2)
+    );
+
     const enrichmentResponse = await fetch(enrichmentUrl, {
       method: "POST",
       headers: headers,
@@ -339,6 +347,10 @@ async function enrichHighestRolePersons(
     });
 
     if (!enrichmentResponse.ok) {
+      const errorText = await enrichmentResponse.text();
+      console.error(
+        `HTTP error during enrichment! Status: ${enrichmentResponse.status} ${errorText}`
+      );
       throw new Error(`HTTP error! status: ${enrichmentResponse.status}`);
     }
 
@@ -366,7 +378,7 @@ async function enrichHighestRolePersons(
         }
         company.first_name = enrichedMatch.first_name || "";
         company.last_name = enrichedMatch.last_name || "";
-        company.company_personal_email = enrichedMatch.email || ""; // Changed from 'email' to 'company_personal_email'
+        company.company_personal_email = enrichedMatch.email || "";
         company.title = enrichedMatch.title || person.title;
         company.linkedin_url = enrichedMatch.linkedin_url || "";
         console.log(
@@ -388,51 +400,83 @@ async function enrichHighestRolePersons(
   }
 }
 
-const { ApifyClient } = require("apify-client");
 
-// Function to scrape Google Maps for businesses based on business type and location
+
+function extractSuburbOrCity(locationInput: string): string {
+  // Regular expressions to match Australian states and territories
+  const stateRegex = /\b(New South Wales|NSW|Victoria|VIC|Queensland|QLD|South Australia|SA|Western Australia|WA|Tasmania|TAS|Northern Territory|NT|Australian Capital Territory|ACT)\b/i;
+  const stateRegexGlobal = /\b(New South Wales|NSW|Victoria|VIC|Queensland|QLD|South Australia|SA|Western Australia|WA|Tasmania|TAS|Northern Territory|NT|Australian Capital Territory|ACT)\b/gi;
+
+  // Check if the input is a state
+  const isStateOnly = locationInput.trim().match(stateRegexGlobal)?.length === 1 &&
+    locationInput.trim().replace(stateRegexGlobal, "").trim() === "";
+
+  if (isStateOnly) {
+    throw new Error("Please provide a specific suburb or city, not just a state.");
+  }
+
+  // Split the address into components
+  const addressComponents = locationInput.split(",");
+
+  // Iterate from the end to the beginning
+  for (let i = addressComponents.length - 1; i >= 0; i--) {
+    let component = addressComponents[i].trim();
+
+    // Skip if component is country or postcode
+    if (component.toLowerCase() === "australia" || /^\d{4}$/.test(component)) {
+      continue;
+    }
+
+    // Remove state abbreviations from the component
+    const cleanedComponent = component.replace(stateRegexGlobal, "").trim();
+
+    // If the cleaned component is not empty, return it
+    if (cleanedComponent) {
+      return `${cleanedComponent}, Australia`;
+    }
+  }
+
+  throw new Error("Unable to extract a valid suburb or city from the input.");
+}
+
+
 async function scrapeGoogleMaps(
   businessType: string,
-  locationQuery: string
+  location: string
 ): Promise<any[]> {
-  const input = {
-    searchStringsArray: [businessType],
-    locationQuery: locationQuery,
-    maxCrawledPlacesPerSearch: 5,
-    language: "en",
-    maxImages: 0,
-    scrapeImageAuthors: false,
-    onlyDataFromSearchPage: false,
-    includeWebResults: false,
-    scrapeDirectories: true,
-    deeperCityScrape: true,
-    searchMatching: "all",
-    placeMinimumStars: "",
-    skipClosedPlaces: false,
-    allPlacesNoSearchAction: "",
+  const apiKey = process.env.RENDER_API_KEY || ""; // Include your API key if required
+
+  const endpoint = "https://scraper-pls-work-54137747006.us-central1.run.app/search";
+
+  const requestData = {
+    business_type: businessType,
+    location: location,
   };
 
-  const client = new ApifyClient({
-    token: process.env.NEXT_PUBLIC_APIFY_API_TOKEN || "",
-  });
+  const headers = {
+    "Content-Type": "application/json",
+    "X-API-Key": apiKey,
+  };
 
   try {
-    // Run the Actor for the specified location and business type
-    const run = await client.actor("nwua9Gu5YrADL7ZDj").call(input);
+    const response = await axios.post(endpoint, requestData, { headers });
 
-    // Fetch Actor results from the run's dataset
-    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+    if (response.status !== 200) {
+      throw new Error(`Error fetching data: ${response.statusText}`);
+    }
 
-    // Map each item to a JSON format
-    const results = items.map((item: any) => ({
-      company_name: item.title,
+    const data = response.data;
+
+    // Map the response to the expected format
+    const results = data.map((item: any) => ({
+      company_name: item.company_name,
       address: item.address,
       website: item.website || "",
-      company_phone: item.phoneUnformatted || "",
+      company_phone: item.company_phone || "",
     }));
 
-    // Log what has been scraped for this suburb
-    console.log(`Scraped data for location: ${locationQuery}`);
+    // Log the scraped data
+    console.log(`Scraped data for location: ${location}`);
     console.log(JSON.stringify(results, null, 2)); // Pretty print the JSON result
 
     return results;
@@ -488,7 +532,6 @@ function normalizeUrl(urlStr: string): string {
   }
 }
 
-// Helper function to handle actor concurrency and collect results
 async function runActorPool(
   businessType: string,
   suburbs: string[],
@@ -501,19 +544,20 @@ async function runActorPool(
 
   return new Promise<void>((resolve, reject) => {
     function runNextActor() {
-      // Start new actors while we haven't reached maxConcurrency and there are suburbs left
       while (activeCount < maxConcurrency && nextIndex < suburbs.length) {
-        let suburb = suburbs[nextIndex++];
+        let suburb = suburbs[nextIndex++].trim();
         activeCount++;
 
-        // Append ", Australia" to the suburb
-        suburb = `${suburb}, Australia`;
+        // Check if suburb already ends with ", Australia"
+        if (!suburb.toLowerCase().endsWith(", australia")) {
+          suburb = `${suburb}, Australia`;
+        }
 
         console.log(`Starting actor for suburb: ${suburb}`);
         const actorPromise = scrapeGoogleMaps(businessType, suburb)
           .then((results) => {
             console.log(`Actor completed for suburb: ${suburb}`);
-            allResults.push(...results); // Collect the results
+            allResults.push(...results);
           })
           .catch((error) => {
             console.error(`Error running actor for suburb: ${suburb}`, error);
@@ -521,9 +565,9 @@ async function runActorPool(
           .finally(() => {
             activeCount--;
             if (activeCount === 0 && nextIndex >= suburbs.length) {
-              resolve(); // All actors have finished
+              resolve();
             } else {
-              runNextActor(); // Start the next actor
+              runNextActor();
             }
           });
         allPromises.push(actorPromise);
@@ -533,6 +577,7 @@ async function runActorPool(
     runNextActor();
   }).then(() => Promise.all(allPromises).then(() => allResults));
 }
+
 
 // Function to sanitize filenames
 function sanitizeFilename(name: string): string {
@@ -857,6 +902,7 @@ async function fetchPage(pageUrl: string): Promise<string | null> {
         "User-Agent": "Mozilla/5.0 (compatible; EmailScraper/1.0)",
       },
       timeout: 10000,
+      responseType: 'text', // Add this line
     });
     return response.data;
   } catch (error) {
@@ -931,36 +977,40 @@ async function crawlWebsite(startUrl: string): Promise<string[]> {
   return Array.from(emailsFound);
 }
 
-// Main function to generate leads and handle location check + suburbs listing
 export async function generateLeads(
   businessType: string,
-  location: string
+  locationInput: string
 ): Promise<string> {
   try {
-    const locationCheckResult = await checkLocation(location);
+    // Extract the suburb or city from the user's location input
+    const extractedLocation = extractSuburbOrCity(locationInput);
+    console.log("Extracted Location:", extractedLocation);
+
+    // Use the extracted location in the rest of the function
+    const locationCheckResult = await checkLocation(extractedLocation);
     console.log("Location check result:", locationCheckResult);
 
     let uniqueResults;
 
     if (locationCheckResult === "yes") {
       console.log("Broad location detected, fetching list of suburbs...");
-      const unstructuredSuburbs = await listSuburbs(location);
+      const unstructuredSuburbs = await listSuburbs(extractedLocation);
       console.log("Suburbs list retrieved:", unstructuredSuburbs);
       const structuredSuburbs = await extractSuburbs(unstructuredSuburbs);
       console.log("Structured Suburb List:", structuredSuburbs);
 
-      // Run a pool of 7 actors at a time and collect results
-      const allResults = await runActorPool(
+      // Run a pool of actors and collect results
+      uniqueResults = await runActorPool(
         businessType,
         structuredSuburbs,
         7
       );
 
       // Remove duplicates from the combined results
-      uniqueResults = removeDuplicates(allResults);
+      uniqueResults = removeDuplicates(uniqueResults);
     } else {
       console.log("Specific location detected, scraping Google Maps...");
-      const results = await scrapeGoogleMaps(businessType, location);
+      const results = await scrapeGoogleMaps(businessType, extractedLocation);
 
       // Remove duplicates in case of single-location scraping
       uniqueResults = removeDuplicates(results);
@@ -1034,53 +1084,72 @@ export async function generateLeads(
           .replace(/^www\./, "");
         domainsBatch.push(websiteDomain);
         domainToCompanyIndex[websiteDomain] = index;
-
+    
         // When we have collected enough domains, process them
         if (domainsBatch.length === 10) {
           const highestRolePersonsBatch = await getHighestRolePerson(
             domainsBatch
           );
-
-          highestRolePersonsBatch.forEach((person) => {
-            const normalizedDomain = person.domain.toLowerCase();
+    
+          for (const person of highestRolePersonsBatch) {
+            const normalizedDomain = person.domain.toLowerCase().replace(/^www\./, "");
             const companyIndex = domainToCompanyIndex[normalizedDomain];
-
+    
             if (companyIndex === undefined) {
               console.error(
                 `Company index not found for domain ${normalizedDomain}`
               );
             } else {
               highestRolePersons.push({ ...person, companyIndex });
+    
+              // When we have collected 10 highest role persons, enrich them
+              if (highestRolePersons.length === 10) {
+                await enrichHighestRolePersons(highestRolePersons, savedData);
+                highestRolePersons.length = 0; // Reset the array
+              }
             }
-          });
-
+          }
+    
           // Clear the domainsBatch and domainToCompanyIndex
           domainsBatch = [];
           domainToCompanyIndex = {};
-
-          // When we have collected 10 highest role persons, enrich them
-          if (highestRolePersons.length >= 10) {
+        }
+      }
+    }
+    
+    // Process any remaining domains
+    if (domainsBatch.length > 0) {
+      const highestRolePersonsBatch = await getHighestRolePerson(domainsBatch);
+    
+      for (const person of highestRolePersonsBatch) {
+        const normalizedDomain = person.domain.toLowerCase().replace(/^www\./, "");
+        const companyIndex = domainToCompanyIndex[normalizedDomain];
+    
+        if (companyIndex === undefined) {
+          console.error(
+            `Company index not found for domain ${normalizedDomain}`
+          );
+        } else {
+          highestRolePersons.push({ ...person, companyIndex });
+    
+          // Enrich when we have 10 records
+          if (highestRolePersons.length === 10) {
             await enrichHighestRolePersons(highestRolePersons, savedData);
             highestRolePersons.length = 0; // Reset the array
           }
         }
       }
+    
+      // Clear the domainsBatch and domainToCompanyIndex
+      domainsBatch = [];
+      domainToCompanyIndex = {};
     }
-
-    // Process any remaining domains
-    if (domainsBatch.length > 0) {
-      const highestRolePersonsBatch = await getHighestRolePerson(domainsBatch);
-
-      highestRolePersonsBatch.forEach((person) => {
-        const companyIndex = domainToCompanyIndex[person.domain];
-        highestRolePersons.push({ ...person, companyIndex });
-      });
-    }
-
-    // Enrich any remaining highest role persons
+    
+    // Enrich any remaining highest role persons less than 10
     if (highestRolePersons.length > 0) {
       await enrichHighestRolePersons(highestRolePersons, savedData);
     }
+    
 
     // Save the updated savedData back to finalResults.json
     saveToFile("finalResults.json", savedData);
@@ -1146,7 +1215,7 @@ export async function generateLeads(
     }
 
     // Generate the CSV file regardless of whether companies without email were found
-    const csvResult = await generateCSVFile(businessType, location, savedData);
+    const csvResult = await generateCSVFile(businessType, extractedLocation, savedData);
 
     if (
       csvResult === "No leads were found. Try changing locations or business type."
