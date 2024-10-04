@@ -15,6 +15,8 @@ dotenv.config();
 
 const openai = new OpenAI();
 
+export const maxDuration = 300;
+
 // Schema to validate the response format from OpenAI
 const LocationCheck = z.object({
   isBroadLocation: z.boolean(),

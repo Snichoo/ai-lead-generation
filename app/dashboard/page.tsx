@@ -20,6 +20,7 @@ import LoadingScreen from "@/components/custom-ui/loading-screen";
 import Script from "next/script";
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 
+export const maxDuration = 300;
 
 const formSchema = z.object({
   businessType: z.string().nonempty("Business type is required"),
