@@ -24,41 +24,7 @@ const SuburbListSchema = z.object({
   suburbs: z.array(z.string()), // Ensuring the response is an array of suburb strings
 });
 
-// Function to check if the location is broad or specific
-async function checkLocation(userInput: string): Promise<string> {
-  console.log(`User input received: ${userInput}`);
 
-  try {
-    const completion = await openai.beta.chat.completions.parse({
-      model: "gpt-4o-2024-08-06",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Determine if the user input is too broad of a location, suburbs or small cities are not broad location. Be mindful of user typo and synonyms. Example of broad location: Eastern Suburb Sydney, North Sydney, sydney, brisbane, melbourne, adelaide, perth, gold coast, canberra, newcastle, wollongong, geelong, townville, cairns, toowoomba, ballarat, bendigo, albury wodonga etc",
-        },
-        { role: "user", content: userInput.toLowerCase() },
-      ],
-      response_format: zodResponseFormat(LocationCheck, "location_check"),
-    });
-
-    console.log("API request completed successfully.");
-    console.log("Completion object received:", completion);
-
-    const result: { isBroadLocation: boolean } | null =
-      completion.choices[0].message.parsed;
-
-    if (result !== null && result.isBroadLocation !== undefined) {
-      return result.isBroadLocation ? "yes" : "no";
-    } else {
-      console.log("Result is null or undefined.");
-      return "no"; // Default fallback value
-    }
-  } catch (error) {
-    console.error("Error during location check:", error);
-    throw error; // Rethrow the error if necessary
-  }
-}
 
 // Function to call Perplexity API and get suburbs list
 async function listSuburbs(location: string): Promise<string> {
@@ -976,6 +942,63 @@ async function crawlWebsite(startUrl: string): Promise<string[]> {
 
   return Array.from(emailsFound);
 }
+
+async function checkLocation(location: string): Promise<string> {
+  console.log(`Location to check: ${location}`);
+
+  const broadLocations = [
+    "sydney",
+    "melbourne",
+    "brisbane",
+    "perth",
+    "adelaide",
+    "gold coast",
+    "newcastle",
+    "canberra",
+    "wollongong",
+    "geelong",
+    "hobart",
+    "townsville",
+    "cairns",
+    "toowoomba",
+    "darwin",
+    "ballarat",
+    "bendigo",
+    "albury–wodonga",
+    "launceston",
+    "mackay",
+    "rockhampton",
+    "bunbury",
+  ];
+
+  try {
+    // Normalize location
+    let normalizedLocation = location.toLowerCase();
+
+    // Remove 'Australia' and state abbreviations from the location
+    normalizedLocation = normalizedLocation.replace(
+      /\b(australia|nsw|vic|qld|sa|wa|tas|nt|act)\b/gi,
+      ''
+    );
+
+    // Remove any punctuation
+    normalizedLocation = normalizedLocation.replace(/[^\w\s-]/gi, '');
+
+    // Trim whitespace
+    normalizedLocation = normalizedLocation.trim();
+
+    // Check if normalized location matches any of the broad locations
+    if (broadLocations.includes(normalizedLocation)) {
+      return 'yes';
+    } else {
+      return 'no';
+    }
+  } catch (error) {
+    console.error("Error during location check:", error);
+    return 'no'; // Default to 'no' in case of error
+  }
+}
+
 
 export async function generateLeads(
   businessType: string,

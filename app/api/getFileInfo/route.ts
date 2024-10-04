@@ -14,4 +14,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'File info not found' }, { status: 404 });
   }
 }
-
