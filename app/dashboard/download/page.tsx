@@ -22,22 +22,25 @@ export default function DownloadPage() {
     height: 0,
   });
   const [showConfetti, setShowConfetti] = useState(true);
-  const [fileId, setFileId] = useState<string | null>(null);
+  const [filename, setFilename] = useState<string | null>(null);
+  const [fileSizeInBytes, setFileSizeInBytes] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const urlErrorMessage = searchParams.get("error");
-  const urlFileId = searchParams.get("fileId");
+  const urlFilename = searchParams.get("filename");
+  const urlFileSizeInBytes = searchParams.get("fileSizeInBytes");
 
   useEffect(() => {
     if (urlErrorMessage) {
       setErrorMessage(urlErrorMessage);
-    } else if (urlFileId) {
-      setFileId(urlFileId);
+    } else if (urlFilename && urlFileSizeInBytes) {
+      setFilename(urlFilename);
+      setFileSizeInBytes(Number(urlFileSizeInBytes));
     } else {
-      setErrorMessage('No file ID provided.');
+      setErrorMessage('No file information provided.');
     }
-  }, [urlErrorMessage, urlFileId]);
+  }, [urlErrorMessage, urlFilename, urlFileSizeInBytes]);
 
   useEffect(() => {
     const { innerWidth: width, innerHeight: height } = window;
@@ -49,7 +52,15 @@ export default function DownloadPage() {
   }, []);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  const downloadUrl = `${API_URL}/download/${fileId}`;
+  const downloadUrl = `${API_URL}/download?filename=${encodeURIComponent(filename || '')}`;
+
+  const formatFileSize = (bytes: number) => {
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    if (bytes === 0) return "n/a";
+    const i = parseInt(String(Math.floor(Math.log(bytes) / Math.log(1024))), 10);
+    if (i === 0) return `${bytes} ${sizes[i]}`;
+    return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`;
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-8">
@@ -82,10 +93,17 @@ export default function DownloadPage() {
                     className="text-2xl font-medium truncate mb-2"
                     style={{ lineHeight: "1.4", letterSpacing: "0.02em" }}
                   >
-                    {fileId ? `leads_${fileId}.csv` : "Loading..."}
+                    {filename
+                      ? filename.length > 52
+                        ? `${filename.slice(0, 52)}...`
+                        : filename
+                      : "Loading..."}
                   </p>
                   <p className="text-lg text-muted-foreground">
-                    CSV File
+                    CSV File •{" "}
+                    {fileSizeInBytes !== null
+                      ? formatFileSize(fileSizeInBytes)
+                      : "Loading..."}
                   </p>
                 </div>
               </div>
@@ -95,11 +113,11 @@ export default function DownloadPage() {
                     <ArrowLeft className="mr-3 h-6 w-6" /> Return to Dashboard
                   </Button>
                 </Link>
-                {fileId && (
+                {filename && (
                   <a href={downloadUrl}>
                     <Button
                       className="text-lg py-6 px-8"
-                      disabled={!fileId}
+                      disabled={!filename}
                     >
                       <Download className="mr-3 h-6 w-6" /> Download
                     </Button>

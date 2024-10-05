@@ -65,10 +65,10 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
-        const fileId = data.fileId;
+        const { filename, fileSizeInBytes } = data;
 
-        // Redirect to download page with fileId
-        router.push(`/dashboard/download?fileId=${encodeURIComponent(fileId)}`);
+        // Redirect to download page with filename and fileSizeInBytes
+        router.push(`/dashboard/download?filename=${encodeURIComponent(filename)}&fileSizeInBytes=${fileSizeInBytes}`);
       } else {
         const errorMsg = data.error || 'Lead generation failed';
         router.push(`/dashboard/download?error=${encodeURIComponent(errorMsg)}`);
@@ -81,7 +81,7 @@ export default function Home() {
         )}`
       );
     }
-  };  
+  };
 
   return (
     <>
