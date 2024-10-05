@@ -82,7 +82,7 @@ export default function DownloadPage() {
                 Lead Generation Completed 🥳
               </CardTitle>
               <CardDescription className="text-xl mb-6">
-                Please download the file now, as you won't be able to return to this page later.
+                Please download the file now, as you won&apos;t be able to return to this page later.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-8 p-8">
