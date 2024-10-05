@@ -15,9 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { generateLeads } from "@/components/generation/scraper";
 import LoadingScreen from "@/components/custom-ui/loading-screen";
-import Script from "next/script";
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 
 export const maxDuration = 300;
@@ -49,15 +47,31 @@ export default function Home() {
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     console.log("Submitting data: ", values);
-
+  
     try {
-      const result = await generateLeads(values.businessType, values.location?.label || "");
-      if (result === "Lead generation failed" || result.startsWith("No leads were found")) {
-        router.push(
-          `/dashboard/download?error=${encodeURIComponent(result)}`
-        );
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+      const response = await fetch(`${API_URL}/generate-leads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessType: values.businessType,
+          location: values.location?.label || "",
+        }),
+      });
+  
+      const data = await response.json();
+
+      if (response.ok) {
+        const fileId = data.fileId;
+
+        // Redirect to download page with fileId
+        router.push(`/dashboard/download?fileId=${encodeURIComponent(fileId)}`);
       } else {
-        router.push("/dashboard/download");
+        const errorMsg = data.error || 'Lead generation failed';
+        router.push(`/dashboard/download?error=${encodeURIComponent(errorMsg)}`);
       }
     } catch (error) {
       console.error("Error generating leads:", error);
@@ -67,7 +81,7 @@ export default function Home() {
         )}`
       );
     }
-  };
+  };  
 
   return (
     <>

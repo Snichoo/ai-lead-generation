@@ -22,17 +22,22 @@ export default function DownloadPage() {
     height: 0,
   });
   const [showConfetti, setShowConfetti] = useState(true);
-  const [fileInfo, setFileInfo] = useState<any>(null);
+  const [fileId, setFileId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const urlErrorMessage = searchParams.get("error");
+  const urlFileId = searchParams.get("fileId");
 
   useEffect(() => {
     if (urlErrorMessage) {
       setErrorMessage(urlErrorMessage);
+    } else if (urlFileId) {
+      setFileId(urlFileId);
+    } else {
+      setErrorMessage('No file ID provided.');
     }
-  }, [urlErrorMessage]);
+  }, [urlErrorMessage, urlFileId]);
 
   useEffect(() => {
     const { innerWidth: width, innerHeight: height } = window;
@@ -43,43 +48,8 @@ export default function DownloadPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!errorMessage) {
-      // Fetch file info from API
-      const fetchFileInfo = async () => {
-        try {
-          const response = await fetch("/api/getFileInfo");
-          if (!response.ok) {
-            // Handle 404
-            if (response.status === 404) {
-              setErrorMessage('No leads were found. Try changing locations or business type.');
-            } else {
-              throw new Error("Failed to fetch file info");
-            }
-          } else {
-            const data = await response.json();
-            setFileInfo(data);
-          }
-        } catch (error) {
-          console.error("Error fetching file info:", error);
-          setErrorMessage('An error occurred while fetching the file info.');
-        }
-      };
-      fetchFileInfo();
-    }
-  }, [errorMessage]);
-
-  const handleDownload = () => {
-    window.location.href = "/api/downloadCSV";
-  };
-
-  const formatFileSize = (bytes: number) => {
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    if (bytes === 0) return "n/a";
-    const i = parseInt(String(Math.floor(Math.log(bytes) / Math.log(1024))), 10);
-    if (i === 0) return `${bytes} ${sizes[i]}`;
-    return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`;
-  };
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const downloadUrl = `${API_URL}/download/${fileId}`;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-8">
@@ -101,7 +71,7 @@ export default function DownloadPage() {
                 Lead Generation Completed 🥳
               </CardTitle>
               <CardDescription className="text-xl mb-6">
-                Please download the file now, as you won&apos;t be able to return to this page later.
+                Please download the file now, as you won't be able to return to this page later.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-8 p-8">
@@ -112,17 +82,10 @@ export default function DownloadPage() {
                     className="text-2xl font-medium truncate mb-2"
                     style={{ lineHeight: "1.4", letterSpacing: "0.02em" }}
                   >
-                    {fileInfo && fileInfo.filename
-                      ? fileInfo.filename.length > 52
-                        ? `${fileInfo.filename.slice(0, 52)}...`
-                        : fileInfo.filename
-                      : "Loading..."}
+                    {fileId ? `leads_${fileId}.csv` : "Loading..."}
                   </p>
                   <p className="text-lg text-muted-foreground">
-                    CSV File •{" "}
-                    {fileInfo && fileInfo.fileSizeInBytes
-                      ? formatFileSize(fileInfo.fileSizeInBytes)
-                      : "Loading..."}
+                    CSV File
                   </p>
                 </div>
               </div>
@@ -132,13 +95,16 @@ export default function DownloadPage() {
                     <ArrowLeft className="mr-3 h-6 w-6" /> Return to Dashboard
                   </Button>
                 </Link>
-                <Button
-                  className="text-lg py-6 px-8"
-                  onClick={handleDownload}
-                  disabled={!fileInfo || !fileInfo.filename}
-                >
-                  <Download className="mr-3 h-6 w-6" /> Download
-                </Button>
+                {fileId && (
+                  <a href={downloadUrl}>
+                    <Button
+                      className="text-lg py-6 px-8"
+                      disabled={!fileId}
+                    >
+                      <Download className="mr-3 h-6 w-6" /> Download
+                    </Button>
+                  </a>
+                )}
               </div>
             </CardContent>
           </Card>
