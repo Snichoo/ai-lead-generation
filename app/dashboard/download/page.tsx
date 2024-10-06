@@ -51,7 +51,7 @@ export default function DownloadPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://your-cloud-run-service-url';
   const downloadUrl = `${API_URL}/download?filename=${encodeURIComponent(filename || '')}`;
 
   const formatFileSize = (bytes: number) => {
