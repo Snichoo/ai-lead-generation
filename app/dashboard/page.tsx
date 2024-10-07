@@ -19,7 +19,7 @@ import LoadingScreen from "@/components/custom-ui/loading-screen";
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 
 export const maxDuration = 300;
-//stable
+
 const formSchema = z.object({
   businessType: z.string().nonempty("Business type is required"),
   location: z.object({
@@ -30,6 +30,7 @@ const formSchema = z.object({
   }).nullable().refine(val => val !== null, {
     message: "Location is required",
   }),
+  leadCount: z.number().min(1).max(2000).optional(),
 });
 
 export default function Home() {
@@ -40,7 +41,8 @@ export default function Home() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       businessType: "",
-      location: null as any, // Allow null for location
+      location: null as any,
+      leadCount: undefined,
     },
   });  
 
@@ -59,6 +61,7 @@ export default function Home() {
         body: JSON.stringify({
           businessType: values.businessType,
           location: values.location?.label || "",
+          leadCount: values.leadCount,
         }),
       });
   
@@ -66,8 +69,6 @@ export default function Home() {
 
       if (response.ok) {
         const { filename, fileSizeInBytes } = data;
-
-        // Redirect to download page with filename and fileSizeInBytes
         router.push(`/dashboard/download?filename=${encodeURIComponent(filename)}&fileSizeInBytes=${fileSizeInBytes}`);
       } else {
         const errorMsg = data.error || 'Lead generation failed';
@@ -95,8 +96,7 @@ export default function Home() {
               Generate Leads
             </CardTitle>
             <CardDescription className="text-xl mb-6">
-              Specify business type and location. Limit: 800 leads per
-              generation. Refine filters if expecting to exceed this.
+              Specify business type, location, and number of leads. Maximum limit: 2000 leads.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -148,6 +148,24 @@ export default function Home() {
                 />
                 <p className="text-red-500 text-base">
                   {form.formState.errors.location?.message}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <Label htmlFor="lead-count" className="text-lg">
+                  Number of Leads to Scrape (Optional, max 2000)
+                </Label>
+                <Input
+                  {...form.register("leadCount", { valueAsNumber: true })}
+                  id="lead-count"
+                  type="number"
+                  placeholder="Enter number of leads (leave empty for max)"
+                  className="text-lg p-6"
+                  min="1"
+                  max="2000"
+                />
+                <p className="text-red-500 text-base">
+                  {form.formState.errors.leadCount?.message}
                 </p>
               </div>
 
