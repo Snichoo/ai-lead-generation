@@ -30,7 +30,16 @@ const formSchema = z.object({
   }).nullable().refine(val => val !== null, {
     message: "Location is required",
   }),
-  leadCount: z.number().min(1).max(2000).optional(),
+  leadCount: z.preprocess((val) => {
+    if (typeof val === 'string' && val.trim() === '') {
+      return undefined; // Treat empty string as undefined
+    }
+    if (typeof val === 'string') {
+      const parsed = Number(val);
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    return val;
+  }, z.number().min(1).max(2000).optional()),
 });
 
 export default function Home() {
@@ -156,7 +165,7 @@ export default function Home() {
                   Number of Leads to Scrape (Optional, max 2000)
                 </Label>
                 <Input
-                  {...form.register("leadCount", { valueAsNumber: true })}
+                  {...form.register("leadCount")}
                   id="lead-count"
                   type="number"
                   placeholder="Enter number of leads (leave empty for max)"
