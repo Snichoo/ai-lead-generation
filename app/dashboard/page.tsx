@@ -162,7 +162,7 @@ export default function Home() {
 
               <div className="space-y-4">
                 <Label htmlFor="lead-count" className="text-lg">
-                  Number of Leads to Scrape (Optional, max 2000)
+                  Number of Leads to Scrape (Optional, max 1000)
                 </Label>
                 <Input
                   {...form.register("leadCount")}
@@ -171,7 +171,7 @@ export default function Home() {
                   placeholder="Enter number of leads (leave empty for max)"
                   className="text-lg p-6"
                   min="1"
-                  max="2000"
+                  max="1000"
                 />
                 <p className="text-red-500 text-base">
                   {form.formState.errors.leadCount?.message}
