@@ -39,7 +39,7 @@ const formSchema = z.object({
       return isNaN(parsed) ? undefined : parsed;
     }
     return val;
-  }, z.number().min(1).max(2000).optional()),
+  }, z.number().min(1).max(1000).optional()),
 });
 
 export default function Home() {
@@ -105,7 +105,7 @@ export default function Home() {
               Generate Leads
             </CardTitle>
             <CardDescription className="text-xl mb-6">
-              Specify business type, location, and number of leads. Maximum limit: 2000 leads.
+              Specify business type, location, and number of leads. Maximum limit: 1000 leads.
             </CardDescription>
           </CardHeader>
           <CardContent>
