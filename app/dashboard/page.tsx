@@ -20,27 +20,45 @@ import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 
 export const maxDuration = 300;
 
-const formSchema = z.object({
-  businessType: z.string().nonempty("Business type is required"),
-  location: z.object({
-    label: z.string(),
-    value: z.object({
-      place_id: z.string(),
-    }),
-  }).nullable().refine(val => val !== null, {
-    message: "Location is required",
-  }),
-  leadCount: z.preprocess((val) => {
-    if (typeof val === 'string' && val.trim() === '') {
-      return undefined; // Treat empty string as undefined
-    }
-    if (typeof val === 'string') {
-      const parsed = Number(val);
-      return isNaN(parsed) ? undefined : parsed;
-    }
-    return val;
-  }, z.number().min(1).max(1000).optional()),
-});
+const parsedMaxLeadCount = Number(process.env.NEXT_PUBLIC_MAX_LEAD_COUNT);
+const MAX_LEAD_COUNT =
+  !isNaN(parsedMaxLeadCount) && parsedMaxLeadCount > 0
+    ? parsedMaxLeadCount
+    : 1000; // Default to 1000 if the env variable is invalid
+
+
+    const formSchema = z.object({
+      businessType: z.string().nonempty("Business type is required"),
+      location: z
+        .object({
+          label: z.string(),
+          value: z.object({
+            place_id: z.string(),
+          }),
+        })
+        .nullable()
+        .refine((val) => val !== null, {
+          message: "Location is required",
+        }),
+      leadCount: z.preprocess(
+        (val) => {
+          if (typeof val === "string" && val.trim() === "") {
+            return undefined; // Treat empty string as undefined
+          }
+          if (typeof val === "string") {
+            const parsed = Number(val);
+            return isNaN(parsed) ? undefined : parsed;
+          }
+          return val;
+        },
+        z
+          .number()
+          .min(1)
+          .max(MAX_LEAD_COUNT)
+          .optional()
+      ),
+    });
+    
 
 export default function Home() {
   const router = useRouter();
@@ -105,8 +123,9 @@ export default function Home() {
               Generate Leads
             </CardTitle>
             <CardDescription className="text-xl mb-6">
-              Specify business type, location, and number of leads. Maximum limit: 1000 leads.
-            </CardDescription>
+  Specify business type, location, and number of leads. Maximum limit: {MAX_LEAD_COUNT} leads.
+</CardDescription>
+
           </CardHeader>
           <CardContent>
             <form
@@ -161,18 +180,20 @@ export default function Home() {
               </div>
 
               <div className="space-y-4">
-                <Label htmlFor="lead-count" className="text-lg">
-                  Number of Leads to Scrape (Optional, max 1000)
-                </Label>
-                <Input
-                  {...form.register("leadCount")}
-                  id="lead-count"
-                  type="number"
-                  placeholder="Enter number of leads (leave empty for max)"
-                  className="text-lg p-6"
-                  min="1"
-                  max="1000"
-                />
+              <Label htmlFor="lead-count" className="text-lg">
+  Number of Leads to Scrape (Optional, max {MAX_LEAD_COUNT})
+</Label>
+
+<Input
+  {...form.register("leadCount")}
+  id="lead-count"
+  type="number"
+  placeholder="Enter number of leads (leave empty for max)"
+  className="text-lg p-6"
+  min="1"
+  max={MAX_LEAD_COUNT.toString()}
+/>
+
                 <p className="text-red-500 text-base">
                   {form.formState.errors.leadCount?.message}
                 </p>
