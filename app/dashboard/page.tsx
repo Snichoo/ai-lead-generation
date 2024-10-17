@@ -97,15 +97,47 @@ export default function Home() {
     },
   });
 
-  // Custom locations with optional suffix ", NSW"
+  // Custom locations with correct suffixes
   const customLocations: LocationOption[] = [
-    { label: "Capital Country, ACT/NSW", value: "capital_country_act_nsw" },
-    { label: "Blue Mountains, NSW", value: "blue_mountains_nsw" },
-    { label: "Central Coast, NSW", value: "central_coast_nsw" },
-    { label: "Central Tablelands, NSW", value: "central_tablelands_nsw" },
-    { label: "Central West, NSW", value: "central_west_nsw" },
-    { label: "Greater Western Sydney, NSW", value: "greater_western_sydney_nsw" },
-    { label: "Far South Coast, NSW", value: "far_south_coast_nsw" },
+    { label: "Capital Country ACT/NSW, Australia", value: "capital_country_act_nsw" },
+    { label: "Blue Mountains NSW, Australia", value: "blue_mountains_nsw" },
+    { label: "Central Coast NSW, Australia", value: "central_coast_nsw" },
+    { label: "Central Tablelands NSW, Australia", value: "central_tablelands_nsw" },
+    { label: "Central West NSW, Australia", value: "central_west_nsw" },
+    { label: "Far South Coast NSW, Australia", value: "far_south_coast_nsw" },
+    { label: "Far West NSW, Australia", value: "far_west_nsw" },
+    { label: "Hunter Region NSW, Australia", value: "hunter_region_nsw" },
+    { label: "Illawarra NSW, Australia", value: "illawarra_nsw" },
+    { label: "Lord Howe Island NSW, Australia", value: "lord_howe_island_nsw" },
+    { label: "New England NSW, Australia", value: "new_england_nsw" },
+    { label: "Murray NSW, Australia", value: "murray_nsw" },
+    { label: "Mid North Coast NSW, Australia", value: "mid_north_coast_nsw" },
+    { label: "North West Slopes NSW, Australia", value: "north_west_slopes_nsw" },
+    { label: "Northern Rivers NSW, Australia", value: "northern_rivers_nsw" },
+    { label: "Northern Tablelands NSW, Australia", value: "northern_tablelands_nsw" },
+    { label: "Orana NSW, Australia", value: "orana_nsw" },
+    { label: "Riverina NSW, Australia", value: "riverina_nsw" },
+    { label: "Sapphire Coast NSW, Australia", value: "sapphire_coast_nsw" },
+    { label: "Snowy Mountains NSW, Australia", value: "snowy_mountains_nsw" },
+    { label: "South Coast NSW, Australia", value: "south_coast_nsw" },
+    { label: "Southern Highlands NSW, Australia", value: "southern_highlands_nsw" },
+    { label: "Southern Tablelands NSW, Australia", value: "southern_tablelands_nsw" },
+    { label: "South West Slopes NSW, Australia", value: "south_west_slopes_nsw" },
+    { label: "Sunraysia NSW/VIC, Australia", value: "sunraysia_nsw_vic" },
+    { label: "Central Queensland QLD, Australia", value: "central_queensland_qld" },
+    { label: "Darling Downs QLD, Australia", value: "darling_downs_qld" },
+    { label: "Far North Queensland QLD, Australia", value: "far_north_queensland_qld" },
+    { label: "North Queensland QLD, Australia", value: "north_queensland_qld" },
+    { label: "South East Queensland QLD, Australia", value: "south_east_queensland_qld" },
+    { label: "Wide Bay–Burnett QLD, Australia", value: "wide_bay_burnett_qld" },
+    { label: "Central West Queensland QLD, Australia", value: "central_west_queensland_qld" },
+    { label: "South West Queensland QLD, Australia", value: "south_west_queensland_qld" },
+    { label: "Barwon South West VIC, Australia", value: "barwon_south_west_vic" },
+    { label: "Gippsland VIC, Australia", value: "gippsland_vic" },
+    { label: "Grampians VIC, Australia", value: "grampians_vic" },
+    { label: "Greater Melbourne VIC, Australia", value: "greater_melbourne_vic" },
+    { label: "Hume VIC, Australia", value: "hume_vic" },
+    { label: "Loddon Mallee VIC, Australia", value: "loddon_mallee_vic" },
     // Add more custom locations as needed
   ];
 
@@ -124,31 +156,24 @@ export default function Home() {
       types: ["(regions)"],
     };
 
-    service.getPlacePredictions(
-      request,
-      (predictions: any[], status: any) => {
-        let options: LocationOption[] = [];
-
-        if (
-          status === (window as any).google.maps.places.PlacesServiceStatus.OK &&
-          predictions
-        ) {
-          options = predictions.map((prediction) => ({
-            label: prediction.description,
-            value: prediction.place_id,
-          }));
-        }
-
-        // Filter custom locations based on the input value
-        const filteredCustomLocations = customLocations.filter((location) =>
-          location.label.toLowerCase().includes(inputValue.toLowerCase())
-        );
-
-        const combinedOptions = [...filteredCustomLocations, ...options];
-
-        callback(combinedOptions);
+    service.getPlacePredictions(request, (predictions: any[], status: any) => {
+      if (
+        status !== (window as any).google.maps.places.PlacesServiceStatus.OK ||
+        !predictions
+      ) {
+        callback(customLocations);
+        return;
       }
-    );
+
+      const options = predictions.map((prediction) => ({
+        label: prediction.description,
+        value: prediction.place_id,
+      }));
+
+      const combinedOptions = [...customLocations, ...options];
+
+      callback(combinedOptions);
+    });
   };
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
