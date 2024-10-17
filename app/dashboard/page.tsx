@@ -1,4 +1,4 @@
-"use client";
+"use client"
 import { useState, useEffect } from "react";
 import * as z from "zod";
 import { useForm, Controller } from "react-hook-form";
@@ -157,20 +157,25 @@ export default function Home() {
     };
 
     service.getPlacePredictions(request, (predictions: any[], status: any) => {
+      let options: LocationOption[] = [];
+
       if (
-        status !== (window as any).google.maps.places.PlacesServiceStatus.OK ||
-        !predictions
+        status === (window as any).google.maps.places.PlacesServiceStatus.OK &&
+        predictions
       ) {
-        callback(customLocations);
-        return;
+        options = predictions.map((prediction) => ({
+          label: prediction.description,
+          value: prediction.place_id,
+        }));
       }
 
-      const options = predictions.map((prediction) => ({
-        label: prediction.description,
-        value: prediction.place_id,
-      }));
+      // Filter custom locations based on inputValue
+      const filteredCustomLocations = customLocations.filter((location) =>
+        location.label.toLowerCase().includes(inputValue.toLowerCase())
+      );
 
-      const combinedOptions = [...customLocations, ...options];
+      // Combine filtered custom locations with Google predictions
+      const combinedOptions = [...filteredCustomLocations, ...options];
 
       callback(combinedOptions);
     });
