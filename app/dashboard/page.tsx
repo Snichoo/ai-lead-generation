@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import * as z from "zod";
 import { useForm, Controller } from "react-hook-form";
@@ -125,24 +124,31 @@ export default function Home() {
       types: ["(regions)"],
     };
 
-    service.getPlacePredictions(request, (predictions: any[], status: any) => {
-      if (
-        status !== (window as any).google.maps.places.PlacesServiceStatus.OK ||
-        !predictions
-      ) {
-        callback(customLocations);
-        return;
+    service.getPlacePredictions(
+      request,
+      (predictions: any[], status: any) => {
+        let options: LocationOption[] = [];
+
+        if (
+          status === (window as any).google.maps.places.PlacesServiceStatus.OK &&
+          predictions
+        ) {
+          options = predictions.map((prediction) => ({
+            label: prediction.description,
+            value: prediction.place_id,
+          }));
+        }
+
+        // Filter custom locations based on the input value
+        const filteredCustomLocations = customLocations.filter((location) =>
+          location.label.toLowerCase().includes(inputValue.toLowerCase())
+        );
+
+        const combinedOptions = [...filteredCustomLocations, ...options];
+
+        callback(combinedOptions);
       }
-
-      const options = predictions.map((prediction) => ({
-        label: prediction.description,
-        value: prediction.place_id,
-      }));
-
-      const combinedOptions = [...customLocations, ...options];
-
-      callback(combinedOptions);
-    });
+    );
   };
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
