@@ -162,38 +162,39 @@ export default function Home() {
     { label: "Blue Mountains NSW, Australia", value: "blue_mountains_nsw" },
     { label: "Capital Country ACT/NSW, Australia", value: "capital_country_act_nsw" },
   
-  { label: "Sydney CBD and Inner City NSW, Australia", value: "sydney_cbd_and_innercity_nsw" },
-  { label: "Sydney Eastern Suburbs NSW, Australia", value: "sydney_eastern_suburbs_nsw" },
-  { label: "Sydney Inner West NSW, Australia", value: "sydney_inner_west_nsw" },
-  { label: "Sydney Lower North Shore NSW, Australia", value: "sydney_lower_north_shore_nsw" },
-  { label: "Sydney Upper North Shore NSW, Australia", value: "sydney_upper_north_shore_nsw" },
-  { label: "Sydney Northern Suburbs NSW, Australia", value: "sydney_northern_suburbs_nsw" },
-  { label: "Sydney Northern Beaches NSW, Australia", value: "sydney_northern_beaches_nsw" },
-  { label: "Sydney Hills District NSW, Australia", value: "sydney_hills_district_nsw" },
-  { label: "Western Sydney NSW, Australia", value: "sydney_western_sydney_nsw" },
-  { label: "Sydney South Western Sydney NSW, Australia", value: "sydney_south_western_sydney_nsw" },
-  { label: "Sydney Sutherland Shire NSW, Australia", value: "sydney_sutherland_shire_nsw" },
-  { label: "Sydney St George NSW, Australia", value: "sydney_st_george_nsw" },
-  { label: "Sydney Macarthur Region NSW, Australia", value: "sydney_macarthur_region_nsw" },
-  { label: "Sydney Hawkesbury Region NSW, Australia", value: "sydney_hawkesbury_region_nsw" },
-  { label: "Sydney Other Suburbs NSW, Australia", value: "sydney_other_suburbs_nsw" },
-
-  // Melbourne regions
-  { label: "Melbourne Inner City VIC, Australia", value: "melbourne_inner_city_vic" },
-  { label: "Melbourne Northern Suburbs VIC, Australia", value: "melbourne_northern_suburbs_vic" },
-  { label: "Melbourne Eastern Suburbs VIC, Australia", value: "melbourne_eastern_suburbs_vic" },
-  { label: "Melbourne Southern Suburbs VIC, Australia", value: "melbourne_southern_suburbs_vic" },
-  { label: "Melbourne Western Suburbs VIC, Australia", value: "melbourne_western_suburbs_vic" },
-  { label: "Melbourne Northern Outer Suburbs VIC, Australia", value: "melbourne_northern_outer_suburbs_vic" },
-  { label: "Melbourne Eastern Outer Suburbs VIC, Australia", value: "melbourne_eastern_outer_suburbs_vic" },
-
-  // Brisbane regions
-  { label: "Brisbane Inner City QLD, Australia", value: "brisbane_inner_city_qld" },
-  { label: "Brisbane Northern Suburbs QLD, Australia", value: "brisbane_northern_suburbs_qld" },
-  { label: "Brisbane Southern Suburbs QLD, Australia", value: "brisbane_southern_suburbs_qld" },
-  { label: "Brisbane Eastern Suburbs QLD, Australia", value: "brisbane_eastern_suburbs_qld" },
-  { label: "Brisbane Western Suburbs QLD, Australia", value: "brisbane_western_suburbs_qld" },
-];
+    // Sydney regions
+    { label: "Sydney CBD and Inner City NSW, Australia", value: "sydney_cbd_and_innercity_nsw" },
+    { label: "Sydney Eastern Suburbs NSW, Australia", value: "sydney_eastern_suburbs_nsw" },
+    { label: "Sydney Inner West NSW, Australia", value: "sydney_inner_west_nsw" },
+    { label: "Sydney Lower North Shore NSW, Australia", value: "sydney_lower_north_shore_nsw" },
+    { label: "Sydney Upper North Shore NSW, Australia", value: "sydney_upper_north_shore_nsw" },
+    { label: "Sydney Northern Suburbs NSW, Australia", value: "sydney_northern_suburbs_nsw" },
+    { label: "Sydney Northern Beaches NSW, Australia", value: "sydney_northern_beaches_nsw" },
+    { label: "Sydney Hills District NSW, Australia", value: "sydney_hills_district_nsw" },
+    { label: "Western Sydney NSW, Australia", value: "sydney_western_sydney_nsw" },
+    { label: "Sydney South Western Sydney NSW, Australia", value: "sydney_south_western_sydney_nsw" },
+    { label: "Sydney Sutherland Shire NSW, Australia", value: "sydney_sutherland_shire_nsw" },
+    { label: "Sydney St George NSW, Australia", value: "sydney_st_george_nsw" },
+    { label: "Sydney Macarthur Region NSW, Australia", value: "sydney_macarthur_region_nsw" },
+    { label: "Sydney Hawkesbury Region NSW, Australia", value: "sydney_hawkesbury_region_nsw" },
+    { label: "Sydney Other Suburbs NSW, Australia", value: "sydney_other_suburbs_nsw" },
+  
+    // Melbourne regions
+    { label: "Melbourne Inner City VIC, Australia", value: "melbourne_inner_city_vic" },
+    { label: "Melbourne Northern Suburbs VIC, Australia", value: "melbourne_northern_suburbs_vic" },
+    { label: "Melbourne Eastern Suburbs VIC, Australia", value: "melbourne_eastern_suburbs_vic" },
+    { label: "Melbourne Southern Suburbs VIC, Australia", value: "melbourne_southern_suburbs_vic" },
+    { label: "Melbourne Western Suburbs VIC, Australia", value: "melbourne_western_suburbs_vic" },
+    { label: "Melbourne Northern Outer Suburbs VIC, Australia", value: "melbourne_northern_outer_suburbs_vic" },
+    { label: "Melbourne Eastern Outer Suburbs VIC, Australia", value: "melbourne_eastern_outer_suburbs_vic" },
+  
+    // Brisbane regions
+    { label: "Brisbane Inner City QLD, Australia", value: "brisbane_inner_city_qld" },
+    { label: "Brisbane Northern Suburbs QLD, Australia", value: "brisbane_northern_suburbs_qld" },
+    { label: "Brisbane Southern Suburbs QLD, Australia", value: "brisbane_southern_suburbs_qld" },
+    { label: "Brisbane Eastern Suburbs QLD, Australia", value: "brisbane_eastern_suburbs_qld" },
+    { label: "Brisbane Western Suburbs QLD, Australia", value: "brisbane_western_suburbs_qld" },
+  ];
 
   const loadOptions = (
     inputValue: string,
