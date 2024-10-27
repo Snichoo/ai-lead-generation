@@ -283,13 +283,13 @@ export default function Home() {
 
   return (
     <>
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-8">
+<div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200">
         {isLoading ? (
           <LoadingScreen />
         ) : (
-          <Card className="w-full max-w-3xl shadow-2xl">
-            <CardHeader className="text-center">
-              <CardTitle className="text-5xl font-bold mb-4">
+        <Card className="w-full max-w-3xl shadow-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-5xl font-bold mb-4">
                 Generate Leads
               </CardTitle>
               <CardDescription className="text-xl mb-6">
