@@ -160,7 +160,7 @@ export default function Home() {
     { label: "Central Tablelands NSW, Australia", value: "central_tablelands_nsw" },
     { label: "Central Coast NSW, Australia", value: "central_coast_nsw" },
     { label: "Blue Mountains NSW, Australia", value: "blue_mountains_nsw" },
-    { label: "Capital Country ACT/NSW, Australia", value: "capital_country_act_nsw" },
+    { label: "Capital Country ACT/NSW, Australia", value: "capital_country_act" },
   
     // Sydney regions
     { label: "Sydney CBD and Inner City NSW, Australia", value: "sydney_cbd_and_innercity_nsw" },
